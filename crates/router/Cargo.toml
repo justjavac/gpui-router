@@ -1,0 +1,35 @@
+[package]
+name = "gpui_router"
+version = "0.1.0"
+description = "A router for GPUI App."
+keywords = ["gpui", "router", "ui"]
+categories = ["ui"]
+homepage.workspace = true
+repository.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+readme = "README.md"
+
+[lib]
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+gpui.workspace = true
+matchit = "0.8.6"
+smallvec.workspace = true
+
+[dev-dependencies]
+gpui = { workspace = true, features = ["test-support"] }
+
+[features]
+default = ["http_client", "font-kit", "wayland", "x11"]
+test-support = ["gpui/test-support"]
+leak-detection = ["gpui/leak-detection"]
+runtime_shaders = ["gpui/runtime_shaders"]
+macos-blade = ["gpui/macos-blade"]
+wayland = ["gpui/wayland"]
+x11 = ["gpui/x11"]
+http_client = ["gpui/http_client"]
+font-kit = ["gpui/font-kit"]

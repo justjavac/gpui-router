@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = ["crates/router"]
+default-members = ["crates/router"]
+
+[workspace.package]
+authors = ["迷渡 <justjavac@gmail.com>"]
+homepage = "https://github.com/justjavac/gpui-router"
+repository = "https://github.com/justjavac/gpui-router"
+license = "MIT"
+edition = "2024"
+
+[workspace.dependencies]
+gpui = { git = "https://github.com/zed-industries/zed.git" }
+gpui_router = { path = "crates/router" }
+smallvec = "1.14.0"
