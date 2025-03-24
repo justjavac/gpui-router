@@ -64,9 +64,7 @@ fn main() {
   Application::new().run(|cx: &mut App| {
     router_init(cx);
     cx.activate(true);
-    cx.open_window(WindowOptions::default(), |_, cx| cx.new(|_cx| HelloWorld {
-        text: "World".into(),
-    }))
+    cx.open_window(WindowOptions::default(), |_, cx| cx.new(|_cx| HelloWorld {}))
       .unwrap();
   });
 }
