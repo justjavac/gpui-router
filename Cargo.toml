@@ -9,6 +9,7 @@ homepage = "https://github.com/justjavac/gpui-router"
 repository = "https://github.com/justjavac/gpui-router"
 license = "MIT"
 edition = "2024"
+readme = "README.md"
 
 [workspace.dependencies]
 criterion = "0.5.1"
