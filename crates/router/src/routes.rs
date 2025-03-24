@@ -57,7 +57,7 @@ impl RenderOnce for Routes {
       panic!("RouterState not initialized");
     }
 
-    let pathname = cx.global::<RouterState>().pathname.clone();
+    let pathname = cx.global::<RouterState>().location.pathname.clone();
     let route = self.routes.into_iter().find(|route| route.in_pattern(&pathname));
     if let Some(route) = route {
       return route.basename(self.basename).into_any_element();

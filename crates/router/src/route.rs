@@ -121,7 +121,7 @@ impl Route {
 
 impl RenderOnce for Route {
   fn render(mut self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-    let pathname = cx.global::<RouterState>().pathname.clone();
+    let pathname = cx.global::<RouterState>().location.pathname.clone();
     let route = self.routes.into_iter().find(|route| route.in_pattern(&pathname));
     if let Some(route) = route {
       println!("Route: {:?}", route);

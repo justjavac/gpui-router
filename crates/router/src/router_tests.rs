@@ -21,7 +21,7 @@ pub mod tests {
   async fn test_router(cx: &mut TestAppContext) {
     cx.update(|cx| {
       crate::init(cx);
-      assert_eq!(cx.global::<RouterState>().pathname, "/");
+      assert_eq!(cx.global::<RouterState>().location.pathname, "/");
     });
     let window = cx.add_window(|_, _cx| Basic {});
 
@@ -39,7 +39,7 @@ pub mod tests {
         .child(Route::new().path("{*not_match}").element("not_match"))
     });
     view.update(cx, |this, cx| {
-      assert_eq!(cx.global::<RouterState>().pathname, "/");
+      assert_eq!(cx.global::<RouterState>().location.pathname, "/");
       assert_eq!(this.routes().len(), 4);
     })
   }

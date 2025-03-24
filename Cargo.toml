@@ -12,5 +12,4 @@ edition = "2024"
 
 [workspace.dependencies]
 gpui = { git = "https://github.com/zed-industries/zed.git" }
-gpui_router = { path = "crates/router" }
 smallvec = "1.14.0"
