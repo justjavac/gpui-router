@@ -1,8 +1,11 @@
 # gpui-router
 
-A router for GPUI App.
+A router for [GPUI](https://www.gpui.rs/) App, inspired by React-Router.
 
-- [`gpui`](https://www.gpui.rs/)
+> [!WARNING]
+> **Warning:** gpui-router is currently under active development. This library
+> may contain experimental features and is subject to breaking changes in future
+> releases.
 
 ## Uage
 
