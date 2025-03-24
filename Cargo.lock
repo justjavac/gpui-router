@@ -1967,17 +1967,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "gpui_macros"
-version = "0.1.0"
-source = "git+https://github.com/zed-industries/zed.git#f19e1e3b5f23ec7f64b692f4530825e0e50e5b95"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "gpui_router"
+name = "gpui-router"
 version = "0.0.1"
 dependencies = [
  "criterion",
@@ -1985,6 +1975,16 @@ dependencies = [
  "hashbrown 0.15.2",
  "matchit",
  "smallvec",
+]
+
+[[package]]
+name = "gpui_macros"
+version = "0.1.0"
+source = "git+https://github.com/zed-industries/zed.git#f19e1e3b5f23ec7f64b692f4530825e0e50e5b95"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
