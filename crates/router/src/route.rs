@@ -124,12 +124,10 @@ impl RenderOnce for Route {
     let pathname = cx.global::<RouterState>().location.pathname.clone();
     let route = self.routes.into_iter().find(|route| route.in_pattern(&pathname));
     if let Some(route) = route {
-      println!("Route: {:?}", route);
       let element = self.element.downcast_mut::<Div>().unwrap();
       let element = std::mem::replace(element, div());
       return element.child(route.basename(self.basename)).into_any_element();
     }
-    println!("Route self: {} {:?}", self.basename, self.path);
     self.element
   }
 }
