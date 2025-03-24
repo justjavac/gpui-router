@@ -2,8 +2,8 @@
 name = "gpui-router"
 version = "0.0.1"
 description = "A router for GPUI App."
-keywords = ["gpui", "router", "ui"]
-categories = ["ui"]
+keywords = ["gpui", "router", "ui", "framework"]
+categories = ["gui"]
 homepage.workspace = true
 repository.workspace = true
 authors.workspace = true
