@@ -1,8 +1,6 @@
 use crate::{Location, RouterState};
 use gpui::{App, SharedString};
-use std::sync::LazyLock;
-
-static EMPTY_PARAMS: LazyLock<matchit::Params<'static, 'static>> = LazyLock::new(|| matchit::Params::new());
+use hashbrown::HashMap;
 
 /// Returns a function that lets you navigate programmatically in response to user interactions or effects.
 pub fn use_navigate(cx: &mut App) -> impl FnMut(SharedString) + '_ {
@@ -17,12 +15,8 @@ pub fn use_location(cx: &App) -> &Location {
   &cx.global::<RouterState>().location
 }
 
-pub fn use_params(cx: &App) -> &matchit::Params<'static, 'static> {
-  if let Some(path_match) = cx.global::<RouterState>().path_match.as_ref() {
-    &path_match.params
-  } else {
-    &EMPTY_PARAMS
-  }
+pub fn use_params(cx: &App) -> &HashMap<SharedString, SharedString> {
+  &cx.global::<RouterState>().params
 }
 
 #[cfg(test)]

@@ -1,4 +1,5 @@
 use gpui::{App, Global, SharedString};
+use hashbrown::HashMap;
 use matchit::Params;
 
 #[derive(PartialEq, Eq, Ord, PartialOrd, Clone, Debug)]
@@ -33,10 +34,11 @@ pub struct PathMatch {
   pub params: Params<'static, 'static>,
 }
 
-#[derive(PartialEq, Eq, Ord, PartialOrd, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct RouterState {
   pub location: Location,
   pub path_match: Option<PathMatch>,
+  pub params: HashMap<SharedString, SharedString>,
 }
 
 impl Global for RouterState {}
@@ -46,6 +48,7 @@ impl RouterState {
     let state = Self {
       location: Location::default(),
       path_match: None,
+      params: HashMap::new(),
     };
     cx.set_global::<RouterState>(state);
   }

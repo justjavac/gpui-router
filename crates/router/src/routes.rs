@@ -2,6 +2,7 @@ use crate::Route;
 use crate::RouterState;
 use gpui::prelude::*;
 use gpui::{App, Empty, SharedString, Window};
+use matchit::Router as MatchitRouter;
 use smallvec::SmallVec;
 
 /// Renders a branch of [`Route`](crate::Route) that best matches the current path.
@@ -57,10 +58,24 @@ impl RenderOnce for Routes {
       panic!("RouterState not initialized");
     }
 
+    let mut route_map = MatchitRouter::new();
+    for route in self.routes.iter() {
+      route_map.merge(route.build_route_map(&self.basename)).unwrap();
+    }
+
     let pathname = cx.global::<RouterState>().location.pathname.clone();
-    let route = self.routes.into_iter().find(|route| route.in_pattern(&pathname));
-    if let Some(route) = route {
-      return route.basename(self.basename).into_any_element();
+    let matched = route_map.at(&pathname);
+
+    if let Ok(matched) = matched {
+      for (key, value) in matched.params.iter() {
+        cx.global_mut::<RouterState>()
+          .params
+          .insert(key.to_owned().into(), value.to_owned().into());
+      }
+      let route = self.routes.into_iter().find(|route| route.in_pattern(&pathname));
+      if let Some(route) = route {
+        return route.basename(self.basename).into_any_element();
+      }
     }
 
     Empty {}.into_any_element()

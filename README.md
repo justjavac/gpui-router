@@ -21,13 +21,12 @@ impl Render for HelloWorld {
     div()
       .child(
         Routes::new().child(
-          Route::new()
-            .path("/")
-            .element(layout())
-            .child(Route::new().index().element(home()))
-            .child(Route::new().path("about").element(about()))
-            .child(Route::new().path("dashboard").element(dashboard()))
-            .child(Route::new().path("{*not_match}").element(not_match())),
+          Route::new().path("/").element(layout()).children(vec![
+              Route::new().index().element(home()),
+              Route::new().path("about").element(about()),
+              Route::new().path("dashboard").element(dashboard()),
+              Route::new().path("{*not_match}").element(not_match()),
+            ]),
         ),
       )
   }

@@ -95,27 +95,27 @@ impl Route {
     self
   }
 
-  fn router_maps(&self, basename: &str) -> MatchitRouter<String> {
+  pub(crate) fn build_route_map(&self, basename: &str) -> MatchitRouter<()> {
     let mut router_map = MatchitRouter::new();
 
     if let Some(path) = &self.path {
       let path = format!("{}/{}", basename, path);
-      router_map.insert(path.clone(), path.clone()).unwrap();
+      router_map.insert(path.clone(), ()).unwrap();
     } else if self.index {
       let path = format!("{}/", basename);
-      router_map.insert(path.clone(), path.clone()).unwrap();
+      router_map.insert(path.clone(), ()).unwrap();
     }
 
     // Recursively build the route map
     for route in self.routes.iter() {
-      router_map.merge(route.router_maps(basename)).unwrap();
+      router_map.merge(route.build_route_map(basename)).unwrap();
     }
 
     router_map
   }
 
   pub(crate) fn in_pattern(&self, path: &str) -> bool {
-    self.router_maps("").at(path).is_ok()
+    self.build_route_map("").at(path).is_ok()
   }
 }
 

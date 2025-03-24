@@ -16,14 +16,12 @@ impl Render for Basic {
       .text_color(white())
       .child(div().text_xl().child("Basic Example With Params"))
       .child(nav())
-      .child(
-        Routes::new()
-          .basename("/")
-          .child(Route::new().index().element(home()))
-          .child(Route::new().path("user").element(user_list()))
-          .child(Route::new().path("user/{id}").element(user()))
-          .child(Route::new().path("{*not_match}").element(not_match())),
-      )
+      .child(Routes::new().basename("/").children(vec![
+        Route::new().index().element(home()),
+        Route::new().path("user").element(user_list()),
+        Route::new().path("user/{id}").element(User {}),
+        Route::new().path("{*not_match}").element(not_match()),
+      ]))
   }
 }
 
@@ -51,8 +49,14 @@ fn user_list() -> impl IntoElement {
     .child(NavLink::new().to("/user/3").child(div().child("User3")))
 }
 
-fn user() -> impl IntoElement {
-  div().child("User")
+#[derive(IntoElement)]
+pub struct User {}
+
+impl RenderOnce for User {
+  fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+    let params = use_params(cx);
+    div().child(format!("User: {}", params.get("id").unwrap()))
+  }
 }
 
 fn not_match() -> impl IntoElement {

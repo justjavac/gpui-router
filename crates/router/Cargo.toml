@@ -17,6 +17,7 @@ doctest = false
 
 [dependencies]
 gpui.workspace = true
+hashbrown.workspace = true
 matchit = "0.8.6"
 smallvec.workspace = true
 
