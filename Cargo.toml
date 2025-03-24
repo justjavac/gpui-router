@@ -11,5 +11,6 @@ license = "MIT"
 edition = "2024"
 
 [workspace.dependencies]
+criterion = "0.5.1"
 gpui = { git = "https://github.com/zed-industries/zed.git" }
 smallvec = "1.14.0"
