@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/router"]
+members = ["crates/router", "crates/router-macros"]
 default-members = ["crates/router"]
 
 [workspace.package]
@@ -12,7 +12,12 @@ edition = "2024"
 readme = "README.md"
 
 [workspace.dependencies]
+gpui-router = { path = "crates/router" }
+gpui-router-macros = { path = "crates/router-macros" }
 criterion = "0.5.1"
 hashbrown = "0.15.2"
 gpui = { git = "https://github.com/zed-industries/zed.git" }
+proc-macro2 = "1.0.94"
+quote = "1.0.40"
 smallvec = "1.14.0"
+syn = "2.0.100"

@@ -17,9 +17,11 @@ doctest = false
 
 [dependencies]
 gpui.workspace = true
+gpui-router-macros.workspace = true
 hashbrown.workspace = true
 matchit = "0.8.6"
 smallvec.workspace = true
+
 
 [dev-dependencies]
 criterion.workspace = true

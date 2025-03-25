@@ -1,7 +1,6 @@
 use gpui::prelude::*;
-use gpui::{App, Application, Context, Window, WindowOptions, div, rgb, white};
-use gpui_router::{NavLink, Outlet, init as router_init};
-use gpui_router::{Route, Routes};
+use gpui::{ App, Application, Context, Window, WindowOptions, div, rgb, white};
+use gpui_router::{init as router_init, IntoLayout, NavLink, Outlet, Route, Routes};
 
 struct SubRouter {}
 
@@ -20,7 +19,7 @@ impl Render for SubRouter {
         Routes::new().child(
           Route::new()
             .path("/")
-            .element(layout())
+            .layout(Nav::new())
             .child(Route::new().index().element(home()))
             .child(Route::new().path("about").element(about()))
             .child(Route::new().path("dashboard").element(dashboard()))
@@ -30,19 +29,32 @@ impl Render for SubRouter {
   }
 }
 
-fn layout() -> impl IntoElement {
-  div()
-    .child(
-      div()
-        .flex()
-        .gap_4()
-        .text_lg()
-        .child(NavLink::new().to("/").child(div().child("Home")))
-        .child(NavLink::new().to("/about").child(div().child("About")))
-        .child(NavLink::new().to("/dashboard").child(div().child("Dashboard")))
-        .child(NavLink::new().to("/nothing-here").child(div().child("Not Match"))),
-    )
-    .child(Outlet::new())
+#[derive(IntoElement, IntoLayout)]
+pub struct Nav {
+  outlet: Outlet,
+}
+
+impl Nav {
+  pub fn new() -> Self {
+    Self { outlet: Outlet::new() }
+  }
+}
+
+impl RenderOnce for Nav {
+  fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
+    div()
+      .child(
+        div()
+          .flex()
+          .gap_4()
+          .text_lg()
+          .child(NavLink::new().to("/").child(div().child("Home")))
+          .child(NavLink::new().to("/about").child(div().child("About")))
+          .child(NavLink::new().to("/dashboard").child(div().child("Dashboard")))
+          .child(NavLink::new().to("/nothing-here").child(div().child("Not Match"))),
+      )
+      .child(self.outlet)
+  }
 }
 
 fn home() -> impl IntoElement {

@@ -1,4 +1,4 @@
-use crate::RouterState;
+use crate::{Layout, RouterState};
 use gpui::*;
 use matchit::Router as MatchitRouter;
 use smallvec::SmallVec;
@@ -10,13 +10,14 @@ pub fn route() -> impl IntoElement {
 
 /// Configures an element to render when a pattern matches the current path.
 /// It must be rendered within a [`Routes`](crate::Routes) element.
-#[derive(IntoElement)]
+#[derive(IntoElement, Default)]
 pub struct Route {
   basename: SharedString,
   index: bool,
   path: Option<SharedString>,
-  pub(crate) element: AnyElement,
+  pub(crate) element: Option<AnyElement>,
   pub(crate) routes: SmallVec<[Box<Route>; 1]>,
+  pub(crate) layout: Option<Box<dyn Layout>>,
 }
 
 impl Debug for Route {
@@ -36,21 +37,9 @@ impl Display for Route {
   }
 }
 
-impl Default for Route {
-  fn default() -> Self {
-    Self::new()
-  }
-}
-
 impl Route {
   pub fn new() -> Self {
-    Self {
-      basename: SharedString::from(""),
-      index: false,
-      path: None,
-      element: Empty {}.into_any_element(),
-      routes: SmallVec::new(),
-    }
+    Self::default()
   }
 
   /// The path to match against the current location.
@@ -69,7 +58,20 @@ impl Route {
   }
 
   pub fn element<E: IntoElement>(mut self, element: E) -> Self {
-    self.element = element.into_any_element();
+    if cfg!(debug_assertions) && self.layout.is_some() {
+      panic!("Route element and layout cannot be set at the same time");
+    }
+
+    self.element = Some(element.into_any_element());
+    self
+  }
+
+  pub fn layout(mut self, layout: impl Layout + 'static) -> Self {
+    if cfg!(debug_assertions) && self.element.is_some() {
+      panic!("Route element and layout cannot be set at the same time");
+    }
+
+    self.layout = Some(Box::new(layout));
     self
   }
 
@@ -120,14 +122,20 @@ impl Route {
 }
 
 impl RenderOnce for Route {
-  fn render(mut self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-    let pathname = cx.global::<RouterState>().location.pathname.clone();
-    let route = self.routes.into_iter().find(|route| route.in_pattern(&pathname));
-    if let Some(route) = route {
-      let element = self.element.downcast_mut::<Div>().unwrap();
-      let element = std::mem::replace(element, div());
-      return element.child(route.basename(self.basename)).into_any_element();
+  fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+    if let Some(element) = self.element {
+      return element;
     }
-    self.element
+
+    let pathname = cx.global::<RouterState>().location.pathname.clone();
+    let routes = std::mem::take(&mut self.routes);
+    let route = routes.into_iter().find(|route| route.in_pattern(&pathname));
+    if let Some(mut layout) = self.layout {
+      if let Some(route) = route {
+        layout.outlet(route.basename(self.basename).render(window, cx).into_any_element());
+      }
+      return layout.render_layout(window, cx).into_any_element();
+    }
+    Empty {}.into_any_element()
   }
 }

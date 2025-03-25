@@ -1,0 +1,23 @@
+[package]
+name = "gpui-router-macros"
+version = "0.1.0"
+description = "Router macros for gpui"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+edition.workspace = true
+readme.workspace = true
+
+[lib]
+path = "src/lib.rs"
+proc-macro = true
+doctest = false
+
+[dependencies]
+proc-macro2.workspace = true
+quote.workspace = true
+syn.workspace = true
+
+[dev-dependencies]
+gpui.workspace = true
