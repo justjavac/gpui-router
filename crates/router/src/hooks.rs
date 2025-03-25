@@ -47,14 +47,12 @@ pub mod tests {
         let mut navigate = use_navigate(cx);
         navigate("/".into());
       }
-      assert_eq!(cx.global::<RouterState>().location.pathname, "/about");
       assert_eq!(cx.global::<RouterState>().location.pathname, "/");
 
       {
         let mut navigate = use_navigate(cx);
         navigate("/nothing-here".into());
       }
-      assert_eq!(cx.global::<RouterState>().location.pathname, "/about");
       assert_eq!(cx.global::<RouterState>().location.pathname, "/nothing-here");
     });
   }
