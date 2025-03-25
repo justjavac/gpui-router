@@ -9,6 +9,7 @@ mod router_tests;
 mod routes;
 mod state;
 
+pub use gpui_router_macros::*;
 pub use hooks::*;
 pub use layout::*;
 pub use nav_link::*;
@@ -17,7 +18,6 @@ pub use route::*;
 pub use router::*;
 pub use routes::*;
 pub use state::*;
-pub use gpui_router_macros::*;
 
 pub fn init(cx: &mut gpui::App) {
   RouterState::init(cx);

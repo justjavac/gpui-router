@@ -1,6 +1,6 @@
 use gpui::prelude::*;
-use gpui::{ App, Application, Context, Window, WindowOptions, div, rgb, white};
-use gpui_router::{init as router_init, IntoLayout, NavLink, Outlet, Route, Routes};
+use gpui::{App, Application, Context, Window, WindowOptions, div, rgb, white};
+use gpui_router::{IntoLayout, NavLink, Outlet, Route, Routes, init as router_init};
 
 struct SubRouter {}
 
