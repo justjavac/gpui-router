@@ -15,6 +15,6 @@ impl Outlet {
 
 impl RenderOnce for Outlet {
   fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
-    div()
+    Empty {}.into_any_element()
   }
 }
