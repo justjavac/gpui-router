@@ -71,9 +71,12 @@ impl RenderOnce for Routes {
           .params
           .insert(key.to_owned().into(), value.to_owned().into());
       }
-      let route = self.routes.into_iter().find(|route| route.in_pattern(&pathname));
+      let route = self
+        .routes
+        .into_iter()
+        .find(|route| route.in_pattern(&self.basename, &pathname));
       if let Some(route) = route {
-        return route.into_any_element();
+        return route.basename(self.basename).into_any_element();
       }
     }
 

@@ -12,6 +12,7 @@ pub fn route() -> impl IntoElement {
 /// It must be rendered within a [`Routes`](crate::Routes) element.
 #[derive(IntoElement, Default)]
 pub struct Route {
+  basename: SharedString,
   path: Option<SharedString>,
   pub(crate) element: Option<AnyElement>,
   pub(crate) routes: SmallVec<[Box<Route>; 1]>,
@@ -21,8 +22,11 @@ pub struct Route {
 impl Debug for Route {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("Route")
+      .field("basename", &self.basename)
       .field("path", &self.path)
-      .field("routes", &self.routes)
+      .field("layout", &self.layout.is_some())
+      .field("element", &self.element.is_some())
+      .field("routes", &self.routes.len())
       .finish()
   }
 }
@@ -36,6 +40,11 @@ impl Display for Route {
 impl Route {
   pub fn new() -> Self {
     Self::default()
+  }
+
+  pub(crate) fn basename(mut self, basename: impl Into<SharedString>) -> Self {
+    self.basename = basename.into();
+    self
   }
 
   /// The path to match against the current location.
@@ -84,7 +93,7 @@ impl Route {
   }
 
   pub(crate) fn build_route_map(&self, basename: &str) -> MatchitRouter<()> {
-    let basename = basename.trim_matches('/');
+    let basename = basename.trim_end_matches('/');
     let mut router_map = MatchitRouter::new();
 
     let path = match self.path {
@@ -92,21 +101,23 @@ impl Route {
       None => basename.to_string(),
     };
 
+    let path = if path != "/" { path.trim_end_matches('/') } else { &path };
+
     if self.element.is_some() {
-      router_map.insert(path.clone(), ()).unwrap();
+      router_map.insert(path, ()).unwrap();
       return router_map;
     }
 
     // Recursively build the route map
     for route in self.routes.iter() {
-      router_map.merge(route.build_route_map(&path)).unwrap();
+      router_map.merge(route.build_route_map(path)).unwrap();
     }
 
     router_map
   }
 
-  pub(crate) fn in_pattern(&self, path: &str) -> bool {
-    self.build_route_map("").at(path).is_ok()
+  pub(crate) fn in_pattern(&self, basename: &str, path: &str) -> bool {
+    self.build_route_map(basename).at(path).is_ok()
   }
 }
 
@@ -116,12 +127,17 @@ impl RenderOnce for Route {
       return element;
     }
 
-    let pathname = cx.global::<RouterState>().location.pathname.clone();
-    let routes = std::mem::take(&mut self.routes);
-    let route = routes.into_iter().find(|route| route.in_pattern(&pathname));
     if let Some(mut layout) = self.layout {
+      let pathname = cx.global::<RouterState>().location.pathname.clone();
+      let basename = self.basename.trim_end_matches('/');
+      let basename = match self.path {
+        Some(ref path) => format!("{}/{}", basename, path),
+        None => basename.to_string(),
+      };
+      let routes = std::mem::take(&mut self.routes);
+      let route = routes.into_iter().find(|route| route.in_pattern(&basename, &pathname));
       if let Some(route) = route {
-        layout.outlet(route.render(window, cx).into_any_element());
+        layout.outlet(route.basename(basename).render(window, cx).into_any_element());
       }
       return layout.render_layout(window, cx).into_any_element();
     }

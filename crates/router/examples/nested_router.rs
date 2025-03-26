@@ -1,6 +1,6 @@
 use gpui::prelude::*;
 use gpui::{App, Application, Context, Window, WindowOptions, div, rgb, white};
-use gpui_router::{IntoLayout, NavLink, Outlet, Route, Routes, init as router_init};
+use gpui_router::{IntoLayout, NavLink, Outlet, Route, Routes, init as router_init, use_params};
 
 struct NestedRouter {}
 
@@ -19,14 +19,16 @@ impl Render for NestedRouter {
         Routes::new().child(
           Route::new()
             .layout(Nav::new())
+            .child(Route::new().index().element(home()))
             .child(Route::new().path("about").element(about()))
             .child(
               Route::new()
-                .layout(SubLayout::new())
-                .child(Route::new().index().element(home()))
-                .child(Route::new().path("dashboard").element(dashboard()))
-                .child(Route::new().path("{*not_match}").element(not_match())),
-            ),
+                .path("user")
+                .layout(UserLayout::new())
+                .child(Route::new().index().element(user_list()))
+                .child(Route::new().path("{id}").element(User {})),
+            )
+            .child(Route::new().path("{*not_match}").element(not_match())),
         ),
       )
   }
@@ -53,7 +55,8 @@ impl RenderOnce for Nav {
           .text_lg()
           .child(NavLink::new().to("/").child(div().child("Home")))
           .child(NavLink::new().to("/about").child(div().child("About")))
-          .child(NavLink::new().to("/dashboard").child(div().child("Dashboard")))
+          .child(NavLink::new().to("/user").child(div().child("User")))
+          .child(NavLink::new().to("/user/1").child(div().child("User1")))
           .child(NavLink::new().to("/nothing-here").child(div().child("Not Match"))),
       )
       .child(self.outlet)
@@ -61,20 +64,20 @@ impl RenderOnce for Nav {
 }
 
 #[derive(IntoElement, IntoLayout)]
-pub struct SubLayout {
+pub struct UserLayout {
   outlet: Outlet,
 }
 
-impl SubLayout {
+impl UserLayout {
   pub fn new() -> Self {
     Self { outlet: Outlet::new() }
   }
 }
 
-impl RenderOnce for SubLayout {
+impl RenderOnce for UserLayout {
   fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
     div()
-      .child(div().flex().gap_4().text_lg().child("Sub Layout"))
+      .child(div().flex().gap_4().text_lg().child("User Layout"))
       .child(self.outlet)
   }
 }
@@ -87,14 +90,32 @@ fn about() -> impl IntoElement {
   div().child("About")
 }
 
-fn dashboard() -> impl IntoElement {
-  div().child("Dashboard")
+fn user_list() -> impl IntoElement {
+  div()
+    .flex()
+    .flex_col()
+    .gap_2()
+    .child(NavLink::new().to("/user/1").child(div().child("User1")))
+    .child(NavLink::new().to("/user/2").child(div().child("User2")))
+    .child(NavLink::new().to("/user/3").child(div().child("User3")))
+}
+
+#[derive(IntoElement)]
+pub struct User {}
+
+impl RenderOnce for User {
+  fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+    let params = use_params(cx);
+    div().child(format!("User: {}", params.get("id").unwrap()))
+  }
 }
 
 fn not_match() -> impl IntoElement {
-  div()
-    .child(div().child("Nothing to see here!"))
-    .child(NavLink::new().to("/").child(div().child("Go to the home page")))
+  div().id("not_match").child(div().child("Nothing to see here!")).child(
+    NavLink::new()
+      .to("/")
+      .child(div().text_decoration_1().child("Go to the home page")),
+  )
 }
 
 fn main() {
