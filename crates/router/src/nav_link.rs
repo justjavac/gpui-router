@@ -38,7 +38,7 @@ impl ParentElement for NavLink {
 
 impl InteractiveElement for NavLink {
   fn interactivity(&mut self) -> &mut gpui::Interactivity {
-      self.base.interactivity()
+    self.base.interactivity()
   }
 }
 
