@@ -1,5 +1,6 @@
 use crate::use_navigate;
 use gpui::*;
+use smallvec::SmallVec;
 
 pub fn nav_link() -> impl IntoElement {
   NavLink::new().active(|style| style)
@@ -7,9 +8,15 @@ pub fn nav_link() -> impl IntoElement {
 
 #[derive(IntoElement, Default)]
 pub struct NavLink {
-  child: Option<AnyElement>,
+  children: SmallVec<[AnyElement; 1]>,
   to: SharedString,
   // is_active: bool,
+}
+
+impl ParentElement for NavLink {
+  fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
+    self.children.extend(elements);
+  }
 }
 
 impl NavLink {
@@ -25,27 +32,17 @@ impl NavLink {
   pub fn active(self, _f: impl FnOnce(StyleRefinement) -> StyleRefinement) -> Self {
     unimplemented!()
   }
-
-  pub fn child(mut self, child: impl IntoElement) -> Self {
-    self.child = Some(child.into_any_element());
-    self
-  }
 }
 
 impl RenderOnce for NavLink {
   fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
-    if let Some(child) = self.child {
-      div()
-        .id(ElementId::from(self.to.clone()))
-        .child(child)
-        .on_click(move |_, window, cx| {
-          let mut navigate = use_navigate(cx);
-          navigate(self.to.clone());
-          window.refresh();
-        })
-        .into_any_element()
-    } else {
-      Empty {}.into_any_element()
-    }
+    div()
+      .id(ElementId::from(self.to.clone()))
+      .on_click(move |_, window, cx| {
+        let mut navigate = use_navigate(cx);
+        navigate(self.to.clone());
+        window.refresh();
+      })
+      .children(self.children)
   }
 }
