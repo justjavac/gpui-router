@@ -18,7 +18,6 @@ impl Render for SubRouter {
       .child(
         Routes::new().child(
           Route::new()
-            .path("/")
             .layout(Nav::new())
             .child(Route::new().index().element(home()))
             .child(Route::new().path("about").element(about()))

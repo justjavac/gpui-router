@@ -21,14 +21,13 @@ impl Default for Routes {
 impl Routes {
   pub fn new() -> Self {
     Self {
-      basename: SharedString::from(""),
+      basename: SharedString::from("/"),
       routes: SmallVec::new(),
     }
   }
 
   pub fn basename(mut self, basename: impl Into<SharedString>) -> Self {
-    let s: SharedString = basename.into();
-    self.basename = SharedString::from(s.trim_end_matches('/').to_owned());
+    self.basename = basename.into();
     self
   }
 
@@ -74,7 +73,7 @@ impl RenderOnce for Routes {
       }
       let route = self.routes.into_iter().find(|route| route.in_pattern(&pathname));
       if let Some(route) = route {
-        return route.basename(self.basename).into_any_element();
+        return route.into_any_element();
       }
     }
 

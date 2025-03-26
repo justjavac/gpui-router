@@ -12,8 +12,6 @@ pub fn route() -> impl IntoElement {
 /// It must be rendered within a [`Routes`](crate::Routes) element.
 #[derive(IntoElement, Default)]
 pub struct Route {
-  basename: SharedString,
-  index: bool,
   path: Option<SharedString>,
   pub(crate) element: Option<AnyElement>,
   pub(crate) routes: SmallVec<[Box<Route>; 1]>,
@@ -23,8 +21,6 @@ pub struct Route {
 impl Debug for Route {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("Route")
-      .field("basename", &self.basename)
-      .field("index", &self.index)
       .field("path", &self.path)
       .field("routes", &self.routes)
       .finish()
@@ -44,16 +40,7 @@ impl Route {
 
   /// The path to match against the current location.
   pub fn path(mut self, path: impl Into<SharedString>) -> Self {
-    if self.index {
-      panic!("Route path and index cannot be set at the same time");
-    }
-
     self.path = Some(path.into());
-    self
-  }
-
-  pub(crate) fn basename(mut self, basename: impl Into<SharedString>) -> Self {
-    self.basename = basename.into();
     self
   }
 
@@ -75,12 +62,11 @@ impl Route {
     self
   }
 
-  pub fn index(mut self) -> Self {
-    if self.path.is_some() {
-      panic!("Route path and index cannot be set at the same time");
+  pub fn index(self) -> Self {
+    if cfg!(debug_assertions) && self.path.is_some() {
+      panic!("Route index and path cannot be set at the same time");
     }
-    self.index = true;
-    self
+    self.path("")
   }
 
   /// Adds a `Route` as a child to the `Route`.
@@ -98,19 +84,22 @@ impl Route {
   }
 
   pub(crate) fn build_route_map(&self, basename: &str) -> MatchitRouter<()> {
+    let basename = basename.trim_matches('/');
     let mut router_map = MatchitRouter::new();
 
-    if let Some(path) = &self.path {
-      let path = format!("{}/{}", basename, path);
+    let path = match self.path {
+      Some(ref path) => format!("{}/{}", basename, path),
+      None => basename.to_string(),
+    };
+
+    if self.element.is_some() {
       router_map.insert(path.clone(), ()).unwrap();
-    } else if self.index {
-      let path = format!("{}/", basename);
-      router_map.insert(path.clone(), ()).unwrap();
+      return router_map;
     }
 
     // Recursively build the route map
     for route in self.routes.iter() {
-      router_map.merge(route.build_route_map(basename)).unwrap();
+      router_map.merge(route.build_route_map(&path)).unwrap();
     }
 
     router_map
@@ -132,7 +121,7 @@ impl RenderOnce for Route {
     let route = routes.into_iter().find(|route| route.in_pattern(&pathname));
     if let Some(mut layout) = self.layout {
       if let Some(route) = route {
-        layout.outlet(route.basename(self.basename).render(window, cx).into_any_element());
+        layout.outlet(route.render(window, cx).into_any_element());
       }
       return layout.render_layout(window, cx).into_any_element();
     }
