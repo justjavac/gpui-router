@@ -6,11 +6,28 @@ pub fn nav_link() -> impl IntoElement {
   NavLink::new().active(|style| style)
 }
 
-#[derive(IntoElement, Default)]
+#[derive(IntoElement)]
 pub struct NavLink {
+  base: Div,
   children: SmallVec<[AnyElement; 1]>,
   to: SharedString,
   // is_active: bool,
+}
+
+impl Default for NavLink {
+  fn default() -> Self {
+    Self {
+      base: div(),
+      children: Default::default(),
+      to: Default::default(),
+    }
+  }
+}
+
+impl Styled for NavLink {
+  fn style(&mut self) -> &mut StyleRefinement {
+    self.base.style()
+  }
 }
 
 impl ParentElement for NavLink {
@@ -36,7 +53,8 @@ impl NavLink {
 
 impl RenderOnce for NavLink {
   fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
-    div()
+    self
+      .base
       .id(ElementId::from(self.to.clone()))
       .on_click(move |_, window, cx| {
         let mut navigate = use_navigate(cx);
