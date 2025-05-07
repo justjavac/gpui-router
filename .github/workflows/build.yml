@@ -54,7 +54,8 @@ jobs:
               libwebkit2gtk-4.1-dev libxkbcommon-x11-dev \
               libx11-xcb-dev libxcb1-dev \
               libssl-dev libzstd-dev \
-              vulkan-validationlayers libvulkan1
+              vulkan-validationlayers libvulkan1 \
+              mold
 
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
