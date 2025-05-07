@@ -1,6 +1,6 @@
 [package]
 name = "gpui-router"
-version = "0.0.1"
+version = "0.1.1"
 description = "A router for GPUI App."
 keywords = ["gpui", "router", "ui", "framework"]
 categories = ["gui"]
