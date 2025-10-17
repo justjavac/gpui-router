@@ -1,6 +1,6 @@
 [package]
 name = "gpui-router"
-version = "0.1.1"
+version = "0.2.0"
 description = "A router for GPUI App."
 keywords = ["gpui", "router", "ui", "framework"]
 categories = ["gui"]
@@ -27,12 +27,13 @@ criterion.workspace = true
 gpui = { workspace = true, features = ["test-support"] }
 
 [features]
-default = ["http_client", "font-kit", "wayland", "x11"]
+default = ["font-kit", "wayland", "x11"]
 test-support = ["gpui/test-support"]
+inspector = ["gpui/inspector"]
 leak-detection = ["gpui/leak-detection"]
 runtime_shaders = ["gpui/runtime_shaders"]
 macos-blade = ["gpui/macos-blade"]
 wayland = ["gpui/wayland"]
 x11 = ["gpui/x11"]
-http_client = ["gpui/http_client"]
 font-kit = ["gpui/font-kit"]
+screen-capture = ["gpui/scap"]

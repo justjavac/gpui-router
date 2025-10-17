@@ -2080,7 +2080,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-router"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "criterion",
  "gpui",
@@ -2092,7 +2092,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-router-macros"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "gpui",
  "proc-macro2",
