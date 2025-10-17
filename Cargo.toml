@@ -10,6 +10,7 @@ repository = "https://github.com/justjavac/gpui-router"
 license = "MIT"
 edition = "2024"
 readme = "README.md"
+publish = false
 
 [workspace.dependencies]
 gpui-router = { path = "crates/router" }
