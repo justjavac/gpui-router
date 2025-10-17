@@ -14,10 +14,10 @@ readme = "README.md"
 [workspace.dependencies]
 gpui-router = { path = "crates/router" }
 gpui-router-macros = { path = "crates/router-macros" }
-criterion = "0.5.1"
-hashbrown = "0.15.2"
-gpui = { git = "https://github.com/zed-industries/zed.git" }
-proc-macro2 = "1.0.94"
-quote = "1.0.40"
-smallvec = "1.14.0"
-syn = "2.0.100"
+criterion = "0.7.0"
+hashbrown = "0.16.0"
+gpui = "0.2.1"
+proc-macro2 = "1.0.101"
+quote = "1.0.41"
+smallvec = "1.15.1"
+syn = "2.0.106"
