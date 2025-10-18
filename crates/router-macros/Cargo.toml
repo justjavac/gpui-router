@@ -1,6 +1,6 @@
 [package]
 name = "gpui-router-macros"
-version = "0.2.0"
+version = "0.2.1"
 description = "Router macros for gpui"
 authors.workspace = true
 homepage.workspace = true
@@ -9,6 +9,7 @@ license.workspace = true
 edition.workspace = true
 readme.workspace = true
 publish = true
+documentation = "https://docs.rs/gpui-router-macros"
 
 [lib]
 path = "src/lib.rs"

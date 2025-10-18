@@ -1,6 +1,6 @@
 [package]
 name = "gpui-router"
-version = "0.2.0"
+version = "0.2.1"
 description = "A router for GPUI App."
 keywords = ["gpui", "router", "ui", "framework"]
 categories = ["gui"]
@@ -11,6 +11,7 @@ license.workspace = true
 edition.workspace = true
 readme.workspace = true
 publish = true
+documentation = "https://docs.rs/gpui-router"
 
 [lib]
 path = "src/lib.rs"
