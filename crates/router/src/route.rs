@@ -4,6 +4,7 @@ use matchit::Router as MatchitRouter;
 use smallvec::SmallVec;
 use std::fmt::{Debug, Display};
 
+/// Creates a new [`Route`](crate::Route) element.
 pub fn route() -> impl IntoElement {
   Route::new()
 }
@@ -53,6 +54,8 @@ impl Route {
     self
   }
 
+  /// The element to render when the route matches.
+  /// Panics if a layout is already set.
   pub fn element<E: IntoElement>(mut self, element: E) -> Self {
     if cfg!(debug_assertions) && self.layout.is_some() {
       panic!("Route element and layout cannot be set at the same time");
@@ -62,6 +65,8 @@ impl Route {
     self
   }
 
+  /// The layout to use when the route matches.
+  /// Panics if an element is already set.
   pub fn layout(mut self, layout: impl Layout + 'static) -> Self {
     if cfg!(debug_assertions) && self.element.is_some() {
       panic!("Route element and layout cannot be set at the same time");
@@ -71,6 +76,8 @@ impl Route {
     self
   }
 
+  /// Sets the route as an index route.
+  /// Panics if a path is already set.
   pub fn index(self) -> Self {
     if cfg!(debug_assertions) && self.path.is_some() {
       panic!("Route index and path cannot be set at the same time");

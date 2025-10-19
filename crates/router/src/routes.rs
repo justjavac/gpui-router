@@ -26,6 +26,7 @@ impl Routes {
     }
   }
 
+  /// Sets the base path for all child `Route`s.
   pub fn basename(mut self, basename: impl Into<SharedString>) -> Self {
     self.basename = basename.into();
     self

@@ -1,10 +1,12 @@
 use gpui::*;
 use smallvec::SmallVec;
 
+/// A simple router component that can hold child elements.
 pub fn router() -> impl IntoElement {
   Router::new()
 }
 
+/// A simple router component that can hold child elements.
 #[derive(IntoElement, Default)]
 pub struct Router {
   children: SmallVec<[AnyElement; 1]>,

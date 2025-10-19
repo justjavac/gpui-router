@@ -2,10 +2,12 @@ use crate::use_navigate;
 use gpui::*;
 use smallvec::SmallVec;
 
+/// A navigation link that changes the route when clicked.
 pub fn nav_link() -> impl IntoElement {
   NavLink::new().active(|style| style)
 }
 
+/// A navigation link that changes the route when clicked.
 #[derive(IntoElement)]
 pub struct NavLink {
   base: Div,
@@ -47,11 +49,13 @@ impl NavLink {
     Default::default()
   }
 
+  /// Sets the destination route for the navigation link.
   pub fn to(mut self, to: impl Into<SharedString>) -> Self {
     self.to = to.into();
     self
   }
 
+  /// Sets the style for the active state of the navigation link.
   pub fn active(self, _f: impl FnOnce(StyleRefinement) -> StyleRefinement) -> Self {
     unimplemented!()
   }

@@ -1,3 +1,5 @@
+//! A router for GPUI applications, providing declarative routing capabilities.
+
 mod hooks;
 mod layout;
 mod nav_link;
@@ -19,6 +21,7 @@ pub use router::*;
 pub use routes::*;
 pub use state::*;
 
+/// Initializes the router system within a GPUI application context.
 pub fn init(cx: &mut gpui::App) {
   RouterState::init(cx);
 }

@@ -2,6 +2,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput, Fields, parse_macro_input};
 
+/// Derives the `Layout` trait for a struct with a field named `outlet`.
 pub fn derive_into_layout(input: TokenStream) -> TokenStream {
   let ast = parse_macro_input!(input as DeriveInput);
   let name = &ast.ident;

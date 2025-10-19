@@ -1,9 +1,12 @@
 use gpui::*;
 
+/// An outlet is a placeholder in the UI where routed components will be rendered.
 pub fn outlet() -> impl IntoElement {
   Outlet::new()
 }
 
+/// A placeholder element for routed components.
+/// When no component is routed to this outlet, it renders as an empty element.
 #[derive(IntoElement)]
 pub struct Outlet {
   pub(crate) element: AnyElement,
