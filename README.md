@@ -2,6 +2,14 @@
 
 A router for [GPUI](https://www.gpui.rs/) App, inspired by React-Router.
 
+## Features
+
+- Nested Routes
+- Index Routes
+- Dynamic Segments
+- Wildcard Routes
+- Navigation Links
+
 ## Usage
 
 ```rust
@@ -63,6 +71,10 @@ fn main() {
   });
 }
 ```
+
+## Examples
+
+See the [examples](./examples) folder for more usage examples.
 
 ## License
 
