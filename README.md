@@ -63,3 +63,8 @@ fn main() {
   });
 }
 ```
+
+## License
+
+MIT License - Same as the original Rust implementation.
+See [LICENSE](./LICENSE) for details.
