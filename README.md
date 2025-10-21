@@ -74,7 +74,7 @@ fn main() {
 
 ## Examples
 
-See the [examples](./examples) folder for more usage examples.
+See the [examples](./crates/router/examples) folder for more usage examples.
 
 ## License
 
