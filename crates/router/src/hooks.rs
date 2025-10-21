@@ -15,6 +15,10 @@ pub fn use_location(cx: &App) -> &Location {
   &cx.global::<RouterState>().location
 }
 
+/// Returns the current route parameters as a map of key-value pairs.
+/// This is useful for accessing dynamic segments in the route path.
+/// For example, if you have a route defined as `/user/{id}`,
+/// you can access the `id` parameter using this hook.
 pub fn use_params(cx: &App) -> &HashMap<SharedString, SharedString> {
   &cx.global::<RouterState>().params
 }
