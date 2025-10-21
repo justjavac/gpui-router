@@ -70,20 +70,20 @@ jobs:
           rustc --version
           cargo --version
 
-      - name: Cache
-        uses: actions/cache@v3
-        with:
-          path: |-
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/*/.*
-            target/*/build
-            target/*/deps
-          key:
-            ${{ matrix.config.os }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            ${{ matrix.config.os }}-
+      # - name: Cache
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: |-
+      #       ~/.cargo/registry/index/
+      #       ~/.cargo/registry/cache/
+      #       ~/.cargo/git/db/
+      #       target/*/.*
+      #       target/*/build
+      #       target/*/deps
+      #     key:
+      #       ${{ matrix.config.os }}-${{ hashFiles('Cargo.lock') }}
+      #     restore-keys: |
+      #       ${{ matrix.config.os }}-
 
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
