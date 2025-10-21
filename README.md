@@ -2,7 +2,7 @@
 
 A router for [GPUI](https://www.gpui.rs/) App, inspired by React-Router.
 
-## Uage
+## Usage
 
 ```rust
 use gpui::prelude::*;
