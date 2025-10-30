@@ -25,7 +25,6 @@ matchit = "0.8.6"
 smallvec.workspace = true
 
 [dev-dependencies]
-criterion.workspace = true
 gpui = { workspace = true, features = ["test-support"] }
 
 [features]

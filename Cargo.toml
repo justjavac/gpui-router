@@ -15,7 +15,6 @@ publish = false
 [workspace.dependencies]
 gpui-router = { path = "crates/router" }
 gpui-router-macros = { path = "crates/router-macros" }
-criterion = "0.7.0"
 hashbrown = "0.16.0"
 gpui = "0.2.1"
 proc-macro2 = "1.0.103"
