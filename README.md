@@ -2,6 +2,7 @@
 
 [![ci](https://github.com/justjavac/gpui-router/actions/workflows/build.yml/badge.svg)](https://github.com/justjavac/gpui-router/actions/workflows/build.yml)
 [![Crate](https://img.shields.io/crates/v/gpui-router.svg)](https://crates.io/crates/gpui-router)
+[![Crates.io Total Downloads](https://img.shields.io/crates/d/gpui-router)](https://crates.io/crates/gpui-router)
 [![Documentation](https://docs.rs/gpui-router/badge.svg)](https://docs.rs/gpui-router)
 ![License](https://img.shields.io/crates/l/gpui-router.svg)
 
