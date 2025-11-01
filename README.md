@@ -84,5 +84,5 @@ See the [examples](./crates/router/examples) folder for more usage examples.
 
 ## License
 
-MIT License - Same as the original Rust implementation.
+This project is licensed under the MIT License.
 See [LICENSE](./LICENSE) for details.
