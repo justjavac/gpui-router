@@ -1,6 +1,6 @@
 [package]
 name = "gpui-router-macros"
-version = "0.2.5"
+version = "0.2.6"
 description = "Router macros for gpui"
 authors.workspace = true
 homepage.workspace = true
