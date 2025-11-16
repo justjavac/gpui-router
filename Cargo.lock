@@ -2177,7 +2177,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-router"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "gpui",
  "gpui-router-macros",
@@ -2188,7 +2188,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-router-macros"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "gpui",
  "proc-macro2",
