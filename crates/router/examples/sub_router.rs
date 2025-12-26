@@ -19,10 +19,10 @@ impl Render for SubRouter {
         Routes::new().child(
           Route::new()
             .layout(Nav::new())
-            .child(Route::new().index().element(home()))
-            .child(Route::new().path("about").element(about()))
-            .child(Route::new().path("dashboard").element(dashboard()))
-            .child(Route::new().path("{*not_match}").element(not_match())),
+            .child(Route::new().index().element(|_, _| home()))
+            .child(Route::new().path("about").element(|_, _| about()))
+            .child(Route::new().path("dashboard").element(|_, _| dashboard()))
+            .child(Route::new().path("{*not_match}").element(|_, _| not_match())),
         ),
       )
   }

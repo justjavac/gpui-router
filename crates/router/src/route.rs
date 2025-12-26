@@ -11,13 +11,25 @@ pub fn route() -> impl IntoElement {
 
 /// Configures an element to render when a pattern matches the current path.
 /// It must be rendered within a [`Routes`](crate::Routes) element.
-#[derive(IntoElement, Default)]
+#[derive(IntoElement)]
 pub struct Route {
   basename: SharedString,
   path: Option<SharedString>,
-  pub(crate) element: Option<AnyElement>,
+  pub(crate) element: Option<Box<dyn Fn(&mut Window, &mut App) -> AnyElement>>,
   pub(crate) routes: SmallVec<[Box<Route>; 1]>,
   pub(crate) layout: Option<Box<dyn Layout>>,
+}
+
+impl Default for Route {
+  fn default() -> Self {
+    Self {
+      basename: SharedString::default(),
+      path: None,
+      element: None,
+      routes: SmallVec::new(),
+      layout: None,
+    }
+  }
 }
 
 impl Debug for Route {
@@ -55,13 +67,24 @@ impl Route {
   }
 
   /// The element to render when the route matches.
+  /// Accepts a closure that returns an IntoElement, which will be called lazily when the route matches.
   /// Panics if a layout is already set.
-  pub fn element<E: IntoElement>(mut self, element: E) -> Self {
+  ///
+  /// # Examples
+  /// ```
+  /// Route::new().path("home").element(|| HomeView::render())
+  /// Route::new().path("about").element(|| div().child("About"))
+  /// ```
+  pub fn element<F, E>(mut self, element_fn: F) -> Self
+  where
+    F: Fn(&mut Window, &mut App) -> E + 'static,
+    E: IntoElement,
+  {
     if cfg!(debug_assertions) && self.layout.is_some() {
       panic!("Route element and layout cannot be set at the same time");
     }
 
-    self.element = Some(element.into_any_element());
+    self.element = Some(Box::new(move |window, cx| element_fn(window, cx).into_any_element()));
     self
   }
 
@@ -130,8 +153,8 @@ impl Route {
 
 impl RenderOnce for Route {
   fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-    if let Some(element) = self.element {
-      return element;
+    if let Some(element_fn) = self.element {
+      return element_fn(window, cx);
     }
 
     if let Some(mut layout) = self.layout {

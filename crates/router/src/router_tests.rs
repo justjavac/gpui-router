@@ -10,10 +10,10 @@ pub mod tests {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
       Routes::new()
         .basename("/")
-        .child(Route::new().index().element("home"))
-        .child(Route::new().path("about").element("about"))
-        .child(Route::new().path("dashboard").element("dashboard"))
-        .child(Route::new().path("{*not_match}").element("not_match"))
+        .child(Route::new().index().element(|_, _| "home"))
+        .child(Route::new().path("about").element(|_, _| "about"))
+        .child(Route::new().path("dashboard").element(|_, _| "dashboard"))
+        .child(Route::new().path("{*not_match}").element(|_, _| "not_match"))
     }
   }
 
@@ -33,10 +33,10 @@ pub mod tests {
     let view = cx.new(|_cx| {
       Routes::new()
         .basename("/")
-        .child(Route::new().index().element("home"))
-        .child(Route::new().path("about").element("about"))
-        .child(Route::new().path("dashboard").element("dashboard"))
-        .child(Route::new().path("{*not_match}").element("not_match"))
+        .child(Route::new().index().element(|_, _| "home"))
+        .child(Route::new().path("about").element(|_, _| "about"))
+        .child(Route::new().path("dashboard").element(|_, _| "dashboard"))
+        .child(Route::new().path("{*not_match}").element(|_, _| "not_match"))
     });
     view.update(cx, |this, cx| {
       assert_eq!(cx.global::<RouterState>().location.pathname, "/");
