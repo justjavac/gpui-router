@@ -4,6 +4,8 @@ use matchit::Router as MatchitRouter;
 use smallvec::SmallVec;
 use std::fmt::{Debug, Display};
 
+type RouteElementFactory = Box<dyn Fn(&mut Window, &mut App) -> AnyElement>;
+
 /// Creates a new [`Route`](crate::Route) element.
 pub fn route() -> impl IntoElement {
   Route::new()
@@ -15,7 +17,7 @@ pub fn route() -> impl IntoElement {
 pub struct Route {
   basename: SharedString,
   path: Option<SharedString>,
-  pub(crate) element: Option<Box<dyn Fn(&mut Window, &mut App) -> AnyElement>>,
+  pub(crate) element: Option<RouteElementFactory>,
   pub(crate) routes: SmallVec<[Box<Route>; 1]>,
   pub(crate) layout: Option<Box<dyn Layout>>,
 }
