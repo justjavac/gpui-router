@@ -46,8 +46,8 @@ pub mod tests {
 
   #[gpui::test]
   async fn test_lazy_element_evaluation(cx: &mut TestAppContext) {
-    use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicU32, Ordering};
 
     cx.update(|cx| {
       crate::init(cx);
@@ -76,7 +76,15 @@ pub mod tests {
 
     // At this point, neither element function should have been called yet
     // because we only created the Routes structure, not rendered it
-    assert_eq!(home_counter.load(Ordering::SeqCst), 0, "Home element should not be evaluated during route configuration");
-    assert_eq!(about_counter.load(Ordering::SeqCst), 0, "About element should not be evaluated during route configuration");
+    assert_eq!(
+      home_counter.load(Ordering::SeqCst),
+      0,
+      "Home element should not be evaluated during route configuration"
+    );
+    assert_eq!(
+      about_counter.load(Ordering::SeqCst),
+      0,
+      "About element should not be evaluated during route configuration"
+    );
   }
 }
