@@ -30,11 +30,11 @@ impl Render for HelloWorld {
     div()
       .child(
         Routes::new().child(
-          Route::new().path("/").element(layout()).children(vec![
-              Route::new().index().element(home()),
-              Route::new().path("about").element(about()),
-              Route::new().path("dashboard").element(dashboard()),
-              Route::new().path("{*not_match}").element(not_match()),
+          Route::new().path("/").element(|_, _| layout()).children(vec![
+              Route::new().index().element(|_, _| home()),
+              Route::new().path("about").element(|_, _| about()),
+              Route::new().path("dashboard").element(|_, _| dashboard()),
+              Route::new().path("{*not_match}").element(|_, _| not_match()),
             ]),
         ),
       )
@@ -77,6 +77,8 @@ fn main() {
   });
 }
 ```
+
+**Note:** The `element()` method now accepts a closure that returns an `IntoElement`. This allows for lazy evaluation of route elements - they are only rendered when the route matches, improving performance when you have many routes.
 
 ## Examples
 

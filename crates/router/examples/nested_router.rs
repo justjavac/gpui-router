@@ -19,16 +19,16 @@ impl Render for NestedRouter {
         Routes::new().child(
           Route::new()
             .layout(Nav::new())
-            .child(Route::new().index().element(home()))
-            .child(Route::new().path("about").element(about()))
+            .child(Route::new().index().element(|_, _| home()))
+            .child(Route::new().path("about").element(|_, _| about()))
             .child(
               Route::new()
                 .path("user")
                 .layout(UserLayout::new())
-                .child(Route::new().index().element(user_list()))
-                .child(Route::new().path("{id}").element(User {})),
+                .child(Route::new().index().element(|_, _| user_list()))
+                .child(Route::new().path("{id}").element(|_, _| User {})),
             )
-            .child(Route::new().path("{*not_match}").element(not_match())),
+            .child(Route::new().path("{*not_match}").element(|_, _| not_match())),
         ),
       )
   }

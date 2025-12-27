@@ -17,10 +17,10 @@ impl Render for Basic {
       .child(div().text_xl().child("Basic Example With Params"))
       .child(nav())
       .child(Routes::new().basename("/").children(vec![
-        Route::new().index().element(home()),
-        Route::new().path("user").element(user_list()),
-        Route::new().path("user/{id}").element(User {}),
-        Route::new().path("{*not_match}").element(not_match()),
+        Route::new().index().element(|_, _| home()),
+        Route::new().path("user").element(|_, _| user_list()),
+        Route::new().path("user/{id}").element(|_, _| User {}),
+        Route::new().path("{*not_match}").element(|_, _| not_match()),
       ]))
   }
 }
