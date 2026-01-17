@@ -32,7 +32,7 @@ pub fn derive_into_layout(input: TokenStream) -> TokenStream {
           }
 
           fn render_layout(self: Box<Self>, window: &mut gpui::Window, cx: &mut gpui::App) -> gpui::AnyElement {
-              // 此处假设你的结构体已实现 RenderOnce 特性
+              // Delegate to the render method of the struct
               self.render(window, cx).into_any_element()
           }
       }
