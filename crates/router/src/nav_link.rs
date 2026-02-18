@@ -80,7 +80,7 @@ impl NavLink {
 impl RenderOnce for NavLink {
   fn render(mut self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
     let pathname = &cx.global::<RouterState>().location.pathname;
-    let is_active = if self.end {
+    let is_active = if self.to == "/" || self.end {
       pathname.as_ref() == self.to.as_ref()
     } else {
       pathname.as_ref() == self.to.as_ref()
