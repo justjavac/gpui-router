@@ -79,14 +79,23 @@ impl NavLink {
 
 impl RenderOnce for NavLink {
   fn render(mut self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-    let pathname = &cx.global::<RouterState>().location.pathname;
-    let is_active = if self.to == "/" || self.end {
-      pathname.as_ref() == self.to.as_ref()
+    let is_active = if cx.has_global::<RouterState>() {
+      let pathname = &cx.global::<RouterState>().location.pathname;
+      if self.to == "/" || self.end {
+        pathname.as_ref() == self.to.as_ref()
+      } else {
+        pathname.as_ref() == self.to.as_ref()
+          || pathname
+            .strip_prefix(self.to.as_ref())
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+      }
     } else {
-      pathname.as_ref() == self.to.as_ref()
-        || pathname
-          .strip_prefix(self.to.as_ref())
-          .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+      debug_assert!(
+        false,
+        "NavLink rendered without initialized RouterState; \
+         ensure the router is initialized (e.g., via crate::init()) before rendering NavLink."
+      );
+      false
     };
 
     if is_active {
