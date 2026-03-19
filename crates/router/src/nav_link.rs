@@ -98,10 +98,8 @@ impl RenderOnce for NavLink {
       false
     };
 
-    if is_active {
-      if let Some(active_style) = self.active_style.as_ref() {
-        self.base.style().refine(active_style);
-      }
+    if is_active && let Some(active_style) = self.active_style.as_ref() {
+      self.base.style().refine(active_style);
     }
 
     self
