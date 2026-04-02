@@ -28,7 +28,7 @@ impl Render for SubRouter {
   }
 }
 
-#[derive(IntoElement, IntoLayout)]
+#[derive(Default, IntoElement, IntoLayout)]
 pub struct Nav {
   outlet: Outlet,
 }

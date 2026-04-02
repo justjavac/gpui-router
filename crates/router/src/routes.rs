@@ -1,9 +1,14 @@
-use crate::Route;
-use crate::RouterState;
+use crate::{Route, RouterState, normalize_pathname};
 use gpui::prelude::*;
 use gpui::{App, Empty, SharedString, Window};
-use matchit::Router as MatchitRouter;
+use hashbrown::HashMap;
 use smallvec::SmallVec;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct MatchedRoute {
+  pub(crate) pattern: SharedString,
+  pub(crate) params: HashMap<SharedString, SharedString>,
+}
 
 /// Renders a branch of [`Route`](crate::Route) that best matches the current path.
 #[derive(IntoElement)]
@@ -28,7 +33,7 @@ impl Routes {
 
   /// Sets the base path for all child `Route`s.
   pub fn basename(mut self, basename: impl Into<SharedString>) -> Self {
-    self.basename = basename.into();
+    self.basename = normalize_pathname(basename.into());
     self
   }
 
@@ -50,6 +55,39 @@ impl Routes {
   pub fn routes(&self) -> &SmallVec<[Route; 1]> {
     &self.routes
   }
+
+  pub(crate) fn match_route(&self, pathname: &str) -> Option<MatchedRoute> {
+    let pathname = normalize_pathname(pathname);
+    let mut route_map = matchit::Router::new();
+    for route in self.routes.iter() {
+      route_map.merge(route.build_route_map(self.basename.as_ref())).unwrap();
+    }
+
+    let matched = route_map.at(pathname.as_ref()).ok()?;
+    let params = matched
+      .params
+      .iter()
+      .map(|(key, value)| (key.to_owned().into(), value.to_owned().into()))
+      .collect();
+
+    Some(MatchedRoute {
+      pattern: matched.value.clone(),
+      params,
+    })
+  }
+
+  pub(crate) fn apply_match(cx: &mut App, pathname: SharedString, matched: Option<&MatchedRoute>) {
+    let state = cx.global_mut::<RouterState>();
+    state.location.pathname = pathname.clone();
+
+    if let Some(matched) = matched {
+      state.params = matched.params.clone();
+    } else {
+      state.params.clear();
+    }
+
+    state.path_match = None;
+  }
 }
 
 impl RenderOnce for Routes {
@@ -58,24 +96,15 @@ impl RenderOnce for Routes {
       panic!("RouterState not initialized");
     }
 
-    let mut route_map = MatchitRouter::new();
-    for route in self.routes.iter() {
-      route_map.merge(route.build_route_map(&self.basename)).unwrap();
-    }
+    let pathname = normalize_pathname(cx.global::<RouterState>().location.pathname.as_ref());
+    let matched = self.match_route(pathname.as_ref());
+    Self::apply_match(cx, pathname, matched.as_ref());
 
-    let pathname = cx.global::<RouterState>().location.pathname.clone();
-    let matched = route_map.at(&pathname);
-
-    if let Ok(matched) = matched {
-      for (key, value) in matched.params.iter() {
-        cx.global_mut::<RouterState>()
-          .params
-          .insert(key.to_owned().into(), value.to_owned().into());
-      }
+    if let Some(matched) = matched {
       let route = self
         .routes
         .into_iter()
-        .find(|route| route.in_pattern(&self.basename, &pathname));
+        .find(|route| route.contains_pattern(self.basename.as_ref(), matched.pattern.as_ref()));
       if let Some(route) = route {
         return route.basename(self.basename).into_any_element();
       }

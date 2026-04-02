@@ -19,6 +19,7 @@ pub use outlet::*;
 pub use route::*;
 pub use router::*;
 pub use routes::*;
+pub(crate) use state::normalize_pathname;
 pub use state::*;
 
 /// Initializes the router system within a GPUI application context.

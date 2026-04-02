@@ -1,6 +1,6 @@
 #[cfg(test)]
 pub mod tests {
-  use crate::{Route, RouterState, Routes};
+  use crate::{Route, RouterState, Routes, normalize_pathname};
   use gpui::prelude::*;
   use gpui::{TestAppContext, VisualTestContext, Window};
 
@@ -86,5 +86,64 @@ pub mod tests {
       0,
       "About element should not be evaluated during route configuration"
     );
+  }
+
+  #[gpui::test]
+  async fn test_static_routes_win_over_dynamic_routes(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+
+      let routes = Routes::new()
+        .basename("/")
+        .child(Route::new().path("{id}").element(|_, _| "dynamic"))
+        .child(Route::new().path("settings").element(|_, _| "settings"));
+
+      let matched = routes.match_route("/settings").unwrap();
+      Routes::apply_match(cx, normalize_pathname("/settings"), Some(&matched));
+
+      assert_eq!(matched.pattern, "/settings");
+      assert!(cx.global::<RouterState>().params.is_empty());
+    });
+  }
+
+  #[gpui::test]
+  async fn test_route_params_are_cleared_when_next_match_has_none(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+
+      let routes = Routes::new()
+        .basename("/")
+        .child(Route::new().path("user/{id}").element(|_, _| "user"))
+        .child(Route::new().path("about").element(|_, _| "about"));
+
+      let user_match = routes.match_route("/user/42").unwrap();
+      Routes::apply_match(cx, normalize_pathname("/user/42"), Some(&user_match));
+      assert_eq!(
+        cx.global::<RouterState>().params.get("id").map(|value| value.as_ref()),
+        Some("42")
+      );
+
+      let about_match = routes.match_route("/about").unwrap();
+      Routes::apply_match(cx, normalize_pathname("/about"), Some(&about_match));
+      assert!(cx.global::<RouterState>().params.is_empty());
+      assert_eq!(cx.global::<RouterState>().location.pathname, "/about");
+    });
+  }
+
+  #[gpui::test]
+  async fn test_pathnames_are_normalized_before_matching(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+
+      let routes = Routes::new()
+        .basename("/")
+        .child(Route::new().path("about").element(|_, _| "about"));
+
+      let matched = routes.match_route("/about/").unwrap();
+      Routes::apply_match(cx, normalize_pathname("/about/"), Some(&matched));
+
+      assert_eq!(matched.pattern, "/about");
+      assert_eq!(cx.global::<RouterState>().location.pathname, "/about");
+    });
   }
 }

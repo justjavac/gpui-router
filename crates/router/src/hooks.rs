@@ -5,7 +5,7 @@ use hashbrown::HashMap;
 /// Returns a function that lets you navigate programmatically in response to user interactions or effects.
 pub fn use_navigate(cx: &mut App) -> impl FnMut(SharedString) + '_ {
   move |path: SharedString| {
-    cx.global_mut::<RouterState>().location.pathname = path;
+    cx.global_mut::<RouterState>().with_path(path);
   }
 }
 
