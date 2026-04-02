@@ -58,6 +58,18 @@ pub mod tests {
         navigate("/nothing-here".into());
       }
       assert_eq!(cx.global::<RouterState>().location.pathname, "/nothing-here");
+
+      {
+        let mut navigate = use_navigate(cx);
+        navigate("settings/".into());
+      }
+      assert_eq!(cx.global::<RouterState>().location.pathname, "/settings");
+
+      {
+        let mut navigate = use_navigate(cx);
+        navigate("".into());
+      }
+      assert_eq!(cx.global::<RouterState>().location.pathname, "/");
     });
   }
 }

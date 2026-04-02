@@ -96,3 +96,37 @@ impl RouterState {
     cx.global_mut::<Self>()
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::{Location, RouterState, normalize_pathname};
+
+  #[test]
+  fn test_normalize_pathname_handles_empty_relative_and_trailing_slashes() {
+    assert_eq!(normalize_pathname(""), "/");
+    assert_eq!(normalize_pathname("about"), "/about");
+    assert_eq!(normalize_pathname("/about/"), "/about");
+    assert_eq!(normalize_pathname("  /about/team/  "), "/about/team");
+  }
+
+  #[test]
+  fn test_normalize_pathname_preserves_root() {
+    assert_eq!(normalize_pathname("/"), "/");
+    assert_eq!(normalize_pathname("////"), "/");
+  }
+
+  #[test]
+  fn test_router_state_with_path_normalizes_pathname() {
+    let mut state = RouterState {
+      location: Location::default(),
+      path_match: None,
+      params: Default::default(),
+    };
+
+    state.with_path("dashboard/".into());
+    assert_eq!(state.location.pathname, "/dashboard");
+
+    state.with_path("".into());
+    assert_eq!(state.location.pathname, "/");
+  }
+}
