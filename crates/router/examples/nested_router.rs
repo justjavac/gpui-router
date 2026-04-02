@@ -34,7 +34,7 @@ impl Render for NestedRouter {
   }
 }
 
-#[derive(IntoElement, IntoLayout)]
+#[derive(Default, IntoElement, IntoLayout)]
 pub struct Nav {
   outlet: Outlet,
 }
@@ -63,7 +63,7 @@ impl RenderOnce for Nav {
   }
 }
 
-#[derive(IntoElement, IntoLayout)]
+#[derive(Default, IntoElement, IntoLayout)]
 pub struct UserLayout {
   outlet: Outlet,
 }

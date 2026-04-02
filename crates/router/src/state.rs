@@ -2,6 +2,23 @@ use gpui::{App, Global, SharedString};
 use hashbrown::HashMap;
 use matchit::Params;
 
+pub(crate) fn normalize_pathname(pathname: impl AsRef<str>) -> SharedString {
+  let pathname = pathname.as_ref().trim();
+  let mut normalized = if pathname.is_empty() {
+    "/".to_string()
+  } else if pathname.starts_with('/') {
+    pathname.to_string()
+  } else {
+    format!("/{pathname}")
+  };
+
+  while normalized.len() > 1 && normalized.ends_with('/') {
+    normalized.pop();
+  }
+
+  normalized.into()
+}
+
 /// A Location represents a URL-like location in the router.
 /// It contains a pathname and an optional state object.
 #[derive(PartialEq, Eq, Ord, PartialOrd, Clone, Debug)]
@@ -16,7 +33,7 @@ impl Default for Location {
   /// Creates a default Location with pathname `/` and empty state.
   fn default() -> Self {
     Self {
-      pathname: "/".into(),
+      pathname: normalize_pathname("/"),
       state: Params::default(),
     }
   }
@@ -65,7 +82,7 @@ impl RouterState {
 
   /// Sets the current pathname in the router state.
   pub fn with_path(&mut self, pathname: SharedString) -> &mut Self {
-    self.location.pathname = pathname;
+    self.location.pathname = normalize_pathname(pathname);
     self
   }
 
@@ -77,5 +94,39 @@ impl RouterState {
   /// Retrieves a mutable reference to the global RouterState from the GPUI application context.
   pub fn global_mut(cx: &mut App) -> &mut Self {
     cx.global_mut::<Self>()
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{Location, RouterState, normalize_pathname};
+
+  #[test]
+  fn test_normalize_pathname_handles_empty_relative_and_trailing_slashes() {
+    assert_eq!(normalize_pathname(""), "/");
+    assert_eq!(normalize_pathname("about"), "/about");
+    assert_eq!(normalize_pathname("/about/"), "/about");
+    assert_eq!(normalize_pathname("  /about/team/  "), "/about/team");
+  }
+
+  #[test]
+  fn test_normalize_pathname_preserves_root() {
+    assert_eq!(normalize_pathname("/"), "/");
+    assert_eq!(normalize_pathname("////"), "/");
+  }
+
+  #[test]
+  fn test_router_state_with_path_normalizes_pathname() {
+    let mut state = RouterState {
+      location: Location::default(),
+      path_match: None,
+      params: Default::default(),
+    };
+
+    state.with_path("dashboard/".into());
+    assert_eq!(state.location.pathname, "/dashboard");
+
+    state.with_path("".into());
+    assert_eq!(state.location.pathname, "/");
   }
 }

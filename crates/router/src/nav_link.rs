@@ -1,4 +1,4 @@
-use crate::{RouterState, use_navigate};
+use crate::{RouterState, normalize_pathname, use_navigate};
 use gpui::*;
 use smallvec::SmallVec;
 
@@ -77,18 +77,29 @@ impl NavLink {
   }
 }
 
+fn is_active_path(pathname: &str, to: &str, end: bool) -> bool {
+  let pathname = normalize_pathname(pathname);
+  let to = normalize_pathname(to);
+
+  if to == "/" || end {
+    pathname.as_ref() == to.as_ref()
+  } else {
+    pathname.as_ref() == to.as_ref()
+      || pathname
+        .strip_prefix(to.as_ref())
+        .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+  }
+}
+
 impl RenderOnce for NavLink {
   fn render(mut self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+    let to = normalize_pathname(self.to.as_ref());
     let is_active = if cx.has_global::<RouterState>() {
-      let pathname = &cx.global::<RouterState>().location.pathname;
-      if self.to == "/" || self.end {
-        pathname.as_ref() == self.to.as_ref()
-      } else {
-        pathname.as_ref() == self.to.as_ref()
-          || pathname
-            .strip_prefix(self.to.as_ref())
-            .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
-      }
+      is_active_path(
+        cx.global::<RouterState>().location.pathname.as_ref(),
+        to.as_ref(),
+        self.end,
+      )
     } else {
       debug_assert!(
         false,
@@ -104,12 +115,42 @@ impl RenderOnce for NavLink {
 
     self
       .base
-      .id(ElementId::from(self.to.clone()))
+      .id(ElementId::from(to.clone()))
       .on_click(move |_, window, cx| {
         let mut navigate = use_navigate(cx);
-        navigate(self.to.clone());
+        navigate(to.clone());
         window.refresh();
       })
       .children(self.children)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::is_active_path;
+
+  #[test]
+  fn test_root_nav_link_is_only_active_on_exact_root() {
+    assert!(is_active_path("/", "/", false));
+    assert!(is_active_path("", "", false));
+    assert!(!is_active_path("/settings", "/", false));
+  }
+
+  #[test]
+  fn test_nav_link_matches_descendants_by_default() {
+    assert!(is_active_path("/settings/profile", "/settings", false));
+    assert!(is_active_path("/settings/profile/", "settings", false));
+  }
+
+  #[test]
+  fn test_nav_link_end_requires_exact_match() {
+    assert!(is_active_path("/settings", "/settings", true));
+    assert!(!is_active_path("/settings/profile", "/settings", true));
+  }
+
+  #[test]
+  fn test_nav_link_respects_segment_boundaries() {
+    assert!(!is_active_path("/users", "/user", false));
+    assert!(!is_active_path("/settings-and-more", "/settings", false));
   }
 }

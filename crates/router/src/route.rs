@@ -1,4 +1,4 @@
-use crate::{Layout, RouterState};
+use crate::{Layout, RouterState, normalize_pathname};
 use gpui::*;
 use matchit::Router as MatchitRouter;
 use smallvec::SmallVec;
@@ -124,32 +124,41 @@ impl Route {
     self
   }
 
-  pub(crate) fn build_route_map(&self, basename: &str) -> MatchitRouter<()> {
+  pub(crate) fn full_path(&self, basename: &str) -> SharedString {
     let basename = basename.trim_end_matches('/');
-    let mut router_map = MatchitRouter::new();
-
     let path = match self.path {
       Some(ref path) => format!("{}/{}", basename, path),
       None => basename.to_string(),
     };
+    normalize_pathname(path)
+  }
 
-    let path = if path != "/" { path.trim_end_matches('/') } else { &path };
+  pub(crate) fn build_route_map(&self, basename: &str) -> MatchitRouter<SharedString> {
+    let mut router_map = MatchitRouter::new();
+    let path = self.full_path(basename);
 
     if self.element.is_some() {
-      router_map.insert(path, ()).unwrap();
+      router_map.insert(path.as_ref(), path.clone()).unwrap();
       return router_map;
     }
 
-    // Recursively build the route map
     for route in self.routes.iter() {
-      router_map.merge(route.build_route_map(path)).unwrap();
+      router_map.merge(route.build_route_map(path.as_ref())).unwrap();
     }
 
     router_map
   }
 
-  pub(crate) fn in_pattern(&self, basename: &str, path: &str) -> bool {
-    self.build_route_map(basename).at(path).is_ok()
+  pub(crate) fn contains_pattern(&self, basename: &str, pattern: &str) -> bool {
+    if self.element.is_some() {
+      return self.full_path(basename).as_ref() == pattern;
+    }
+
+    let basename = self.full_path(basename);
+    self
+      .routes
+      .iter()
+      .any(|route| route.contains_pattern(basename.as_ref(), pattern))
   }
 }
 
@@ -159,15 +168,21 @@ impl RenderOnce for Route {
       return element_fn(window, cx);
     }
 
+    let basename = self.full_path(self.basename.as_ref());
+
     if let Some(mut layout) = self.layout {
-      let pathname = cx.global::<RouterState>().location.pathname.clone();
-      let basename = self.basename.trim_end_matches('/');
-      let basename = match self.path {
-        Some(ref path) => format!("{}/{}", basename, path),
-        None => basename.to_string(),
-      };
+      let pathname = normalize_pathname(cx.global::<RouterState>().location.pathname.as_ref());
       let routes = std::mem::take(&mut self.routes);
-      let route = routes.into_iter().find(|route| route.in_pattern(&basename, &pathname));
+      let mut route_map = MatchitRouter::new();
+      for route in routes.iter() {
+        route_map.merge(route.build_route_map(basename.as_ref())).unwrap();
+      }
+
+      let route = route_map.at(pathname.as_ref()).ok().and_then(|matched| {
+        routes
+          .into_iter()
+          .find(|route| route.contains_pattern(basename.as_ref(), matched.value.as_ref()))
+      });
       if let Some(route) = route {
         layout.outlet(route.basename(basename).render(window, cx).into_any_element());
       }
