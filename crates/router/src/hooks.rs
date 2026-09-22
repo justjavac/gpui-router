@@ -23,7 +23,7 @@ pub fn use_params(cx: &App) -> &HashMap<SharedString, SharedString> {
   &cx.global::<RouterState>().params
 }
 
-#[cfg(test)]
+#[cfg(all(test, any(feature = "gpui-0-2", feature = "test-support")))]
 pub mod tests {
   use super::use_navigate;
   use crate::RouterState;

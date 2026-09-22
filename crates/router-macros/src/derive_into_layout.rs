@@ -27,13 +27,18 @@ pub fn derive_into_layout(input: TokenStream) -> TokenStream {
 
   let tokens = quote! {
       impl gpui_router::Layout for #name {
-          fn outlet(&mut self, element: gpui::AnyElement) {
+          fn outlet(&mut self, element: gpui_router::__private::gpui::AnyElement) {
               self.outlet = element.into();
           }
 
-          fn render_layout(self: Box<Self>, window: &mut gpui::Window, cx: &mut gpui::App) -> gpui::AnyElement {
+          fn render_layout(
+              self: Box<Self>,
+              window: &mut gpui_router::__private::gpui::Window,
+              cx: &mut gpui_router::__private::gpui::App,
+          ) -> gpui_router::__private::gpui::AnyElement {
               // Delegate to the render method of the struct
-              self.render(window, cx).into_any_element()
+              let element = gpui_router::__private::gpui::RenderOnce::render(*self, window, cx);
+              gpui_router::__private::gpui::IntoElement::into_any_element(element)
           }
       }
   };
