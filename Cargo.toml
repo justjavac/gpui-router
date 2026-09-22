@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/router", "crates/router-macros"]
+members = ["crates/gpui-kit-compat", "crates/router", "crates/router-macros"]
 default-members = ["crates/router"]
 
 [workspace.package]
