@@ -3439,7 +3439,7 @@ checksum = "a1bb25850ad31b88bbdef454afb93ec4cdb81f5e200ba5b3f1a0368111780d2c"
 
 [[package]]
 name = "gpui-router"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "gpui",
  "gpui-pre",
@@ -3451,7 +3451,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-router-macros"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "gpui",
  "proc-macro2",
