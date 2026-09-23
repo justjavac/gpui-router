@@ -34,14 +34,33 @@ gpui-router = { version = "0.3", default-features = false, features = ["gpui-pre
 ```
 
 Both backends expose the same router API; only the GPUI types behind it change.
-Enable exactly one backend. `gpui-kit` pins an exact `gpui-pre` release, so both
-crates have to resolve to the same 0.3.x version, otherwise Cargo compiles two
-copies of GPUI and route elements no longer type-check.
+`gpui-kit` pins an exact `gpui-pre` release, so both crates have to resolve to
+the same 0.3.x version, otherwise Cargo compiles two copies of GPUI and route
+elements no longer type-check.
+
+Enable exactly one backend: the choice applies to a whole build graph, so the
+members of one workspace cannot mix backends, and `--all-features` fails with a
+`compile_error!` instead of silently mixing GPUI types.
+
+Feature passthroughs follow the enabled backend through weak `dep?/feature`
+references. `font-kit`, `macos-blade` and `runtime_shaders` only exist on the
+0.2.x line: on `gpui-pre` they are no-ops, because `font-kit` is part of that
+crate's default features and `runtime_shaders` belongs to the platform crate
+that `gpui-kit` selects for you.
 
 `gpui-kit` applications only need `gpui-kit` and `gpui-router`: derive macros
 expand through `gpui_router::__private::gpui`, so a crate named `gpui` is not
 required. The bundled examples bootstrap GPUI directly and therefore build on
 the default backend only.
+
+The GPUI test harness used by this crate (`gpui::test`, `TestAppContext`) needs
+the backend's `test-support` feature, which the 0.2.x dev-dependency enables by
+default. Without it the backend-specific tests are skipped:
+
+```sh
+cargo test                                                          # default backend, all tests
+cargo test --no-default-features --features gpui-pre,test-support   # gpui-kit backend, all tests
+```
 
 ## Usage
 

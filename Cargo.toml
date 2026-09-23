@@ -17,6 +17,8 @@ gpui-router = { path = "crates/router" }
 gpui-router-macros = { path = "crates/router-macros" }
 hashbrown = "0.16.0"
 gpui = "0.2.1"
+# The explicit `package` rename keeps this dependency's extern name at `gpui_pre`.
+# Without it Cargo uses the library name, which is also `gpui` for this crate.
 gpui-pre = { package = "gpui-pre", version = "0.3.6" }
 proc-macro2 = "1.0.105"
 quote = "1.0.43"
