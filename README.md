@@ -27,10 +27,10 @@ A router for [GPUI](https://www.gpui.rs/) App, inspired by React-Router.
 
 ```toml
 # Plain GPUI application
-gpui-router = "0.3"
+gpui-router = "0.4"
 
 # gpui-kit application, which re-exports GPUI as `gpui_kit::*`
-gpui-router = { version = "0.3", default-features = false, features = ["gpui-pre"] }
+gpui-router = { version = "0.4", default-features = false, features = ["gpui-pre"] }
 ```
 
 Both backends expose the same router API; only the GPUI types behind it change.
@@ -67,7 +67,7 @@ cargo test --no-default-features --features gpui-pre,test-support   # gpui-kit b
 ```rust
 use gpui::prelude::*;
 use gpui::{App, Application, Context, Window, WindowOptions, div};
-use gpui_router::{NavLink, Outlet, Route, Routes, init as router_init};
+use gpui_router::{NavLink, Route, Routes, init as router_init};
 
 struct HelloWorld {}
 
@@ -75,25 +75,21 @@ impl Render for HelloWorld {
   fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
     div()
       .child(
-        Routes::new().child(
-          Route::new().path("/").element(|_, _| layout()).children(vec![
-              Route::new().index().element(|_, _| home()),
-              Route::new().path("about").element(|_, _| about()),
-              Route::new().path("dashboard").element(|_, _| dashboard()),
-              Route::new().path("{*not_match}").element(|_, _| not_match()),
-            ]),
-        ),
+        div()
+          .child(NavLink::new().to("/").child(div().child("Home")))
+          .child(NavLink::new().to("/about").child(div().child("About")))
+          .child(NavLink::new().to("/dashboard").child(div().child("Dashboard")))
+          .child(NavLink::new().to("/nothing-here").child(div().child("Not Match"))),
+      )
+      .child(
+        Routes::new()
+          .basename("/")
+          .child(Route::new().index().element(|_, _| home()))
+          .child(Route::new().path("about").element(|_, _| about()))
+          .child(Route::new().path("dashboard").element(|_, _| dashboard()))
+          .child(Route::new().path("{*not_match}").element(|_, _| not_match())),
       )
   }
-}
-
-fn layout() -> impl IntoElement {
-  div()
-    .child(NavLink::new().to("/").child(div().child("Home")))
-    .child(NavLink::new().to("/about").child(div().child("About")))
-    .child(NavLink::new().to("/dashboard").child(div().child("Dashboard")))
-    .child(NavLink::new().to("/nothing-here").child(div().child("Not Match")))
-    .child(Outlet::new())
 }
 
 fn home() -> impl IntoElement {
@@ -125,6 +121,49 @@ fn main() {
 ```
 
 **Note:** The `element()` method now accepts a closure that returns an `IntoElement`. This allows for lazy evaluation of route elements - they are only rendered when the route matches, improving performance when you have many routes.
+
+### Nested routes
+
+Wrap child routes in a layout to keep shared chrome while the matched child
+renders into the layout's outlet:
+
+```rust
+use gpui_router::{IntoLayout, Outlet, Route, Routes};
+
+#[derive(Default, IntoElement, IntoLayout)]
+struct Shell {
+  outlet: Outlet,
+}
+
+impl Shell {
+  pub fn new() -> Self {
+    Self { outlet: Outlet::new() }
+  }
+}
+
+impl RenderOnce for Shell {
+  fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
+    div()
+      .child(NavLink::new().to("/").child(div().child("Home")))
+      .child(NavLink::new().to("/dashboard").child(div().child("Dashboard")))
+      .child(self.outlet)
+  }
+}
+
+Routes::new().child(
+  Route::new()
+    .layout(Shell::new())
+    .child(Route::new().index().element(|_, _| home()))
+    .child(Route::new().path("dashboard").element(|_, _| dashboard()))
+    .child(Route::new().path("{*not_match}").element(|_, _| not_match())),
+)
+```
+
+A layout needs an `outlet` field (the derive reads it) and becomes the route's
+element through `IntoLayout`; the GPUI imports are the ones used above. Nesting
+deeper works the same way: give a child route its own `.layout(...)`. See
+[examples/nested_router.rs](./crates/router/examples/nested_router.rs) for a
+complete two-level example.
 
 ## Examples
 
