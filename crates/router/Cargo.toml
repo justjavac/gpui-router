@@ -29,12 +29,12 @@ smallvec.workspace = true
 gpui = { workspace = true, features = ["test-support"] }
 
 [features]
-default = ["gpui-0-2", "font-kit", "wayland", "x11"]
+default = ["gpui", "font-kit", "wayland", "x11"]
 
-# GPUI backend selection. Enable exactly one: `gpui-0-2` (default) builds against
+# GPUI backend selection. Enable exactly one: `gpui` (default) builds against
 # the crates.io `gpui` crate, `gpui-pre` builds against the `gpui-pre` crate that
 # gpui-kit publishes.
-gpui-0-2 = ["dep:gpui"]
+gpui = ["dep:gpui"]
 gpui-pre = ["dep:gpui-pre"]
 
 # Backend feature passthroughs. The weak `dep?/feature` syntax only forwards to
@@ -52,16 +52,16 @@ runtime_shaders = ["gpui?/runtime_shaders"]
 # The examples bootstrap GPUI directly, so they only build on the crates.io backend.
 [[example]]
 name = "basic"
-required-features = ["gpui-0-2"]
+required-features = ["gpui"]
 
 [[example]]
 name = "nested_router"
-required-features = ["gpui-0-2"]
+required-features = ["gpui"]
 
 [[example]]
 name = "params"
-required-features = ["gpui-0-2"]
+required-features = ["gpui"]
 
 [[example]]
 name = "sub_router"
-required-features = ["gpui-0-2"]
+required-features = ["gpui"]

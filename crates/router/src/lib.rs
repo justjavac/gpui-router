@@ -1,20 +1,18 @@
 //! A router for GPUI applications, providing declarative routing capabilities.
 
-#[cfg(all(feature = "gpui-0-2", feature = "gpui-pre"))]
+#[cfg(all(feature = "gpui", feature = "gpui-pre"))]
 compile_error!(
-  "`gpui-router` supports one GPUI backend at a time: enable `gpui-0-2` (default) or `gpui-pre`. \
+  "`gpui-router` supports one GPUI backend at a time: enable `gpui` (default) or `gpui-pre`. \
    For gpui-kit, use `gpui-router = { default-features = false, features = [\"gpui-pre\"] }`"
 );
 
-#[cfg(not(any(feature = "gpui-0-2", feature = "gpui-pre")))]
-compile_error!(
-  "`gpui-router` needs a GPUI backend: enable `gpui-0-2` (default), or `gpui-pre` for gpui-kit applications"
-);
+#[cfg(not(any(feature = "gpui", feature = "gpui-pre")))]
+compile_error!("`gpui-router` needs a GPUI backend: enable `gpui` (default), or `gpui-pre` for gpui-kit applications");
 
 // The active backend is aliased to `gpui` so the rest of the crate compiles
 // unchanged against either the crates.io `gpui` crate or `gpui-pre`, which
 // gpui-kit re-exports as `gpui`.
-#[cfg(all(feature = "gpui-0-2", not(feature = "gpui-pre")))]
+#[cfg(all(feature = "gpui", not(feature = "gpui-pre")))]
 pub extern crate gpui;
 
 #[cfg(feature = "gpui-pre")]
@@ -28,7 +26,7 @@ mod route;
 mod router;
 // The GPUI test harness needs the backend's `test-support`: the 0.2 dev-dependency
 // enables it by default, other backends enable it through the `test-support` feature.
-#[cfg(all(test, any(feature = "gpui-0-2", feature = "test-support")))]
+#[cfg(all(test, any(feature = "gpui", feature = "test-support")))]
 mod router_tests;
 mod routes;
 mod state;

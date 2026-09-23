@@ -22,7 +22,7 @@ A router for [GPUI](https://www.gpui.rs/) App, inspired by React-Router.
 
 | Feature | GPUI crate | Use it for |
 | --- | --- | --- |
-| `gpui-0-2` (default) | [`gpui`](https://crates.io/crates/gpui) 0.2.x | Applications that depend on GPUI directly |
+| `gpui` (default) | [`gpui`](https://crates.io/crates/gpui) 0.2.x | Applications that depend on GPUI directly |
 | `gpui-pre` | [`gpui-pre`](https://crates.io/crates/gpui-pre) 0.3.x | Applications built with [`gpui-kit`](https://crates.io/crates/gpui-kit) |
 
 ```toml
