@@ -31,6 +31,7 @@ jobs:
         os:
           - ubuntu-latest
           - macos-latest # Apple Silicon
+          - windows-latest
 
     env:
       CARGO_INCREMENTAL: 0
@@ -58,7 +59,12 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      # The in-crate test harness links the crates.io `gpui` dev-dependency next
+      # to `gpui-pre`; on Windows both embed a MANIFEST resource and the linker
+      # fails with CVT1100. The integration tests below cover the same backend
+      # on Windows without that second GPUI copy.
       - name: Run the gpui-pre backend tests
+        if: matrix.os != 'windows-latest'
         run: cargo test -p gpui-router --no-default-features --features gpui-pre,test-support --lib --locked
 
       - name: Run the gpui-pre backend clippy

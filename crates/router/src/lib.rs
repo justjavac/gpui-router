@@ -9,14 +9,10 @@ compile_error!(
 #[cfg(not(any(feature = "gpui", feature = "gpui-pre")))]
 compile_error!("`gpui-router` needs a GPUI backend: enable `gpui` (default), or `gpui-pre` for gpui-kit applications");
 
-// The active backend is aliased to `gpui` so the rest of the crate compiles
-// unchanged against either the crates.io `gpui` crate or `gpui-pre`, which
-// gpui-kit re-exports as `gpui`.
-#[cfg(all(feature = "gpui", not(feature = "gpui-pre")))]
-pub extern crate gpui;
-
+// `gpui-pre` is aliased to `gpui` so the rest of the crate compiles unchanged
+// against either backend; the crates.io dependency is already called `gpui`.
 #[cfg(feature = "gpui-pre")]
-pub extern crate gpui_pre as gpui;
+extern crate gpui_pre as gpui;
 
 mod hooks;
 mod layout;
@@ -48,7 +44,11 @@ pub use state::*;
 /// applications to depend on a crate literally named `gpui`.
 #[doc(hidden)]
 pub mod __private {
-  pub use crate::gpui;
+  #[cfg(all(feature = "gpui", not(feature = "gpui-pre")))]
+  pub use ::gpui;
+
+  #[cfg(feature = "gpui-pre")]
+  pub use ::gpui_pre as gpui;
 }
 
 /// Initializes the router system within a GPUI application context.
