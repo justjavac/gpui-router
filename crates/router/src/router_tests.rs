@@ -355,4 +355,42 @@ pub mod tests {
       assert!(routes.match_route("/").is_none());
     });
   }
+
+  #[gpui::test]
+  async fn test_element_route_with_children_matches_its_own_and_child_paths(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+
+      let routes = Routes::new()
+        .basename("/")
+        .child(Route::new().path("/").element(|_, _| "layout").children(vec![
+          Route::new().index().element(|_, _| "home"),
+          Route::new().path("about").element(|_, _| "about"),
+        ]));
+
+      assert_eq!(routes.match_route("/").unwrap().pattern, "/");
+      assert_eq!(routes.match_route("/about").unwrap().pattern, "/about");
+      assert!(routes.match_route("/missing").is_none());
+    });
+  }
+
+  #[gpui::test]
+  async fn test_element_route_matches_its_own_path_without_an_index_child(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+
+      let routes = Routes::new().basename("/").child(
+        Route::new()
+          .path("settings")
+          .element(|_, _| "layout")
+          .children(vec![Route::new().path("profile").element(|_, _| "profile")]),
+      );
+
+      assert_eq!(routes.match_route("/settings").unwrap().pattern, "/settings");
+      assert_eq!(
+        routes.match_route("/settings/profile").unwrap().pattern,
+        "/settings/profile"
+      );
+    });
+  }
 }
