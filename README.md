@@ -165,6 +165,10 @@ deeper works the same way: give a child route its own `.layout(...)`. See
 [examples/nested_router.rs](./crates/router/examples/nested_router.rs) for a
 complete two-level example.
 
+Routes with an `element` are leaves: the element replaces the route's children.
+Giving one a child therefore panics in debug builds instead of silently
+rendering nothing, so nested routes always go through `layout(...)`.
+
 ## Examples
 
 See the [examples](./crates/router/examples) folder for more usage examples.

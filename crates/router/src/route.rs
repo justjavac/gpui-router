@@ -70,7 +70,11 @@ impl Route {
 
   /// The element to render when the route matches.
   /// Accepts a closure that returns an IntoElement, which will be called lazily when the route matches.
-  /// Panics if a layout is already set.
+  ///
+  /// A route with an element is a leaf: the element replaces the route's
+  /// children, so nest routes with [`Route::layout`] instead of adding children
+  /// to an element route. Panics in debug builds if a layout or a child is
+  /// already set.
   ///
   /// # Examples
   /// ```
@@ -84,6 +88,9 @@ impl Route {
   {
     if cfg!(debug_assertions) && self.layout.is_some() {
       panic!("Route element and layout cannot be set at the same time");
+    }
+    if cfg!(debug_assertions) && !self.routes.is_empty() {
+      panic!("Route element and children cannot be set at the same time; nest with Route::layout instead");
     }
 
     self.element = Some(Box::new(move |window, cx| element_fn(window, cx).into_any_element()));
@@ -111,7 +118,15 @@ impl Route {
   }
 
   /// Adds a `Route` as a child to the `Route`.
+  ///
+  /// The route must be a layout route (see [`Route::layout`]): a route with an
+  /// element renders that element and ignores its children, so adding a child
+  /// to an element route panics in debug builds.
   pub fn child(mut self, child: Route) -> Self {
+    if cfg!(debug_assertions) && self.element.is_some() {
+      panic!("Route element and children cannot be set at the same time; nest with Route::layout instead");
+    }
+
     self.routes.push(Box::new(child));
     self
   }
@@ -191,5 +206,35 @@ impl RenderOnce for Route {
       return layout.render_layout(window, cx).into_any_element();
     }
     Empty {}.into_any_element()
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::Route;
+
+  #[test]
+  #[should_panic(expected = "Route element and children cannot be set at the same time")]
+  fn test_element_route_rejects_children() {
+    let _ = Route::new()
+      .element(|_, _| "home")
+      .child(Route::new().index().element(|_, _| "index"));
+  }
+
+  #[test]
+  #[should_panic(expected = "Route element and children cannot be set at the same time")]
+  fn test_child_rejects_element() {
+    let _ = Route::new()
+      .child(Route::new().index().element(|_, _| "index"))
+      .element(|_, _| "home");
+  }
+
+  #[test]
+  fn test_children_are_allowed_without_element() {
+    let route = Route::new()
+      .child(Route::new().index().element(|_, _| "index"))
+      .child(Route::new().path("about").element(|_, _| "about"));
+
+    assert_eq!(route.routes.len(), 2);
   }
 }
