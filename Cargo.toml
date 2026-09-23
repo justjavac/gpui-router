@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/router", "crates/router-macros"]
+members = ["crates/gpui-kit-compat", "crates/router", "crates/router-macros"]
 default-members = ["crates/router"]
 
 [workspace.package]
@@ -17,6 +17,7 @@ gpui-router = { path = "crates/router" }
 gpui-router-macros = { path = "crates/router-macros" }
 hashbrown = "0.16.0"
 gpui = "0.2.1"
+gpui-pre = { package = "gpui-pre", version = "0.3.6" }
 proc-macro2 = "1.0.105"
 quote = "1.0.43"
 smallvec = "1.15.1"

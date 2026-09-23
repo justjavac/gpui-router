@@ -1,0 +1,68 @@
+name: gpui-kit
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: "*"
+    paths:
+      - "**/*.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".cargo/config.toml"
+      - ".github/workflows/gpui-kit.yml"
+  pull_request:
+    branches: "*"
+    paths:
+      - "**/*.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".cargo/config.toml"
+      - ".github/workflows/gpui-kit.yml"
+
+jobs:
+  compat:
+    name: gpui-kit ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest # Apple Silicon
+
+    env:
+      CARGO_INCREMENTAL: 0
+      RUST_BACKTRACE: full
+      CARGO_TERM_COLOR: always
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+              gcc g++ clang libfontconfig-dev libwayland-dev \
+              libwebkit2gtk-4.1-dev libxkbcommon-x11-dev \
+              libx11-xcb-dev libxcb1-dev \
+              libssl-dev libzstd-dev \
+              vulkan-validationlayers libvulkan1 \
+              mold
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Run the gpui-pre backend tests
+        run: cargo test -p gpui-router --no-default-features --features gpui-pre,test-support --lib --locked
+
+      - name: Run the gpui-pre backend clippy
+        run: cargo clippy -p gpui-router --no-default-features --features gpui-pre,test-support --lib --locked -- -D warnings
+
+      - name: Run the gpui-kit integration tests
+        run: cargo test -p gpui-kit-compat --locked

@@ -18,7 +18,8 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-gpui.workspace = true
+gpui = { workspace = true, optional = true }
+gpui-pre = { workspace = true, optional = true }
 gpui-router-macros.workspace = true
 hashbrown.workspace = true
 matchit = "0.8.6"
@@ -28,13 +29,39 @@ smallvec.workspace = true
 gpui = { workspace = true, features = ["test-support"] }
 
 [features]
-default = ["font-kit", "wayland", "x11"]
-test-support = ["gpui/test-support"]
-inspector = ["gpui/inspector"]
-leak-detection = ["gpui/leak-detection"]
-runtime_shaders = ["gpui/runtime_shaders"]
-macos-blade = ["gpui/macos-blade"]
-wayland = ["gpui/wayland"]
-x11 = ["gpui/x11"]
-font-kit = ["gpui/font-kit"]
-screen-capture = ["gpui/scap"]
+default = ["gpui", "font-kit", "wayland", "x11"]
+
+# GPUI backend selection. Enable exactly one: `gpui` (default) builds against
+# the crates.io `gpui` crate, `gpui-pre` builds against the `gpui-pre` crate that
+# gpui-kit publishes.
+gpui = ["dep:gpui"]
+gpui-pre = ["dep:gpui-pre"]
+
+# Backend feature passthroughs. The weak `dep?/feature` syntax only forwards to
+# the backend that is actually enabled.
+test-support = ["gpui?/test-support", "gpui-pre?/test-support"]
+inspector = ["gpui?/inspector", "gpui-pre?/inspector"]
+leak-detection = ["gpui?/leak-detection", "gpui-pre?/leak-detection"]
+wayland = ["gpui?/wayland", "gpui-pre?/wayland"]
+x11 = ["gpui?/x11", "gpui-pre?/x11"]
+screen-capture = ["gpui?/scap", "gpui-pre?/screen-capture"]
+font-kit = ["gpui?/font-kit"]
+macos-blade = ["gpui?/macos-blade"]
+runtime_shaders = ["gpui?/runtime_shaders"]
+
+# The examples bootstrap GPUI directly, so they only build on the crates.io backend.
+[[example]]
+name = "basic"
+required-features = ["gpui"]
+
+[[example]]
+name = "nested_router"
+required-features = ["gpui"]
+
+[[example]]
+name = "params"
+required-features = ["gpui"]
+
+[[example]]
+name = "sub_router"
+required-features = ["gpui"]

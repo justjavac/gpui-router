@@ -184,7 +184,9 @@ impl RenderOnce for Route {
           .find(|route| route.contains_pattern(basename.as_ref(), matched.value.as_ref()))
       });
       if let Some(route) = route {
-        layout.outlet(route.basename(basename).render(window, cx).into_any_element());
+        // Fully qualified because newer GPUI releases add a `View::render`
+        // for every type, which makes the method call ambiguous.
+        layout.outlet(RenderOnce::render(route.basename(basename), window, cx).into_any_element());
       }
       return layout.render_layout(window, cx).into_any_element();
     }
