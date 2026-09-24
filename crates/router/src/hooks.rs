@@ -2,11 +2,53 @@ use crate::{Location, RouterState};
 use gpui::{App, SharedString};
 use hashbrown::HashMap;
 
-/// Returns a function that lets you navigate programmatically in response to user interactions or effects.
-pub fn use_navigate(cx: &mut App) -> impl FnMut(SharedString) + '_ {
-  let state = RouterState::require_mut(cx);
-  move |path: SharedString| {
-    state.with_path(path);
+/// Navigates programmatically, mirroring React Router's `navigate`.
+///
+/// | React Router | `Navigator` |
+/// | --- | --- |
+/// | `navigate(to)` | [`Navigator::push`] |
+/// | `navigate(to, { replace: true })` | [`Navigator::replace`] |
+/// | `navigate(-1)` | [`Navigator::back`] |
+/// | `navigate(1)` | [`Navigator::forward`] |
+///
+/// Mutating the router state does not repaint by itself; the built-in links
+/// refresh their window after navigating, and application code should do the
+/// same (`window.refresh()`).
+pub struct Navigator<'a> {
+  state: &'a mut RouterState,
+}
+
+impl Navigator<'_> {
+  /// Navigates to `to`, like React Router's `navigate(to)`.
+  pub fn push(&mut self, to: impl Into<SharedString>) {
+    let to = crate::normalize_shared_pathname(&to.into());
+    self.state.push_location(Location { pathname: to });
+  }
+
+  /// Navigates to `to` without adding a history entry, like
+  /// `navigate(to, { replace: true })`.
+  pub fn replace(&mut self, to: impl Into<SharedString>) {
+    let to = crate::normalize_shared_pathname(&to.into());
+    self.state.replace_location(Location { pathname: to });
+  }
+
+  /// Moves to the previous history entry, like `navigate(-1)`. Does nothing at
+  /// the oldest entry.
+  pub fn back(&mut self) {
+    let _ = self.state.go_back();
+  }
+
+  /// Moves to the next history entry, like `navigate(1)`. Does nothing when the
+  /// application has not gone back.
+  pub fn forward(&mut self) {
+    let _ = self.state.go_forward();
+  }
+}
+
+/// Returns a [`Navigator`] for programmatic navigation.
+pub fn use_navigate(cx: &mut App) -> Navigator<'_> {
+  Navigator {
+    state: RouterState::require_mut(cx),
   }
 }
 
@@ -44,39 +86,99 @@ pub mod tests {
 
       {
         let mut navigate = use_navigate(cx);
-        navigate("/about".into());
+        navigate.push("/about");
       }
       assert_eq!(cx.global::<RouterState>().location.pathname, "/about");
 
       {
         let mut navigate = use_navigate(cx);
-        navigate("/dashboard".into());
+        navigate.push("/dashboard");
       }
       assert_eq!(cx.global::<RouterState>().location.pathname, "/dashboard");
 
       {
         let mut navigate = use_navigate(cx);
-        navigate("/".into());
+        navigate.push("/");
       }
       assert_eq!(cx.global::<RouterState>().location.pathname, "/");
 
       {
         let mut navigate = use_navigate(cx);
-        navigate("/nothing-here".into());
+        navigate.push("/nothing-here");
       }
       assert_eq!(cx.global::<RouterState>().location.pathname, "/nothing-here");
 
       {
         let mut navigate = use_navigate(cx);
-        navigate("settings/".into());
+        navigate.push("settings/");
       }
       assert_eq!(cx.global::<RouterState>().location.pathname, "/settings");
 
       {
         let mut navigate = use_navigate(cx);
-        navigate("".into());
+        navigate.push("");
       }
       assert_eq!(cx.global::<RouterState>().location.pathname, "/");
+    });
+  }
+
+  #[gpui::test]
+  async fn test_navigator_history(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+
+      let location = |cx: &gpui::App| cx.global::<RouterState>().location.pathname.clone();
+
+      {
+        let mut nav = use_navigate(cx);
+        nav.push("/about");
+        nav.push("/dashboard");
+      }
+      assert_eq!(location(cx), "/dashboard");
+
+      {
+        let mut nav = use_navigate(cx);
+        nav.back();
+      }
+      assert_eq!(location(cx), "/about");
+
+      {
+        let mut nav = use_navigate(cx);
+        nav.back();
+        nav.back();
+      }
+      assert_eq!(location(cx), "/", "back stops at the oldest entry");
+
+      {
+        let mut nav = use_navigate(cx);
+        nav.forward();
+      }
+      assert_eq!(location(cx), "/about");
+
+      {
+        let mut nav = use_navigate(cx);
+        nav.push("/settings");
+        nav.back();
+      }
+      assert_eq!(location(cx), "/about", "pushing drops the forward entries");
+
+      {
+        let mut nav = use_navigate(cx);
+        nav.forward();
+      }
+      assert_eq!(location(cx), "/settings");
+
+      {
+        let mut nav = use_navigate(cx);
+        nav.replace("/login");
+      }
+      assert_eq!(location(cx), "/login");
+
+      {
+        let mut nav = use_navigate(cx);
+        nav.back();
+      }
+      assert_eq!(location(cx), "/about", "replace keeps the history length");
     });
   }
 

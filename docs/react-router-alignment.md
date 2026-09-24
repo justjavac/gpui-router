@@ -115,7 +115,7 @@ use_set_search_params(cx)
 ### Phase 2 — the common API (0.6.x)
 
 6. ✅ `Link`, and `NavLink::case_sensitive` with React Router's case-insensitive default.
-7. `Navigator` with `push` / `replace` / `back` / `forward` and a history stack.
+7. ✅ `Navigator` with `push` / `replace` / `back` / `forward` and a history stack (the last 100 locations).
 8. `use_matches()` and `use_match(pattern)`.
 9. `Location { pathname, search, hash, state, key }`, `use_search_params()`, `use_set_search_params()`.
 10. `Redirect::to(..)`.

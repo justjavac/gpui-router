@@ -12,6 +12,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `use_navigate(cx)` returns a `Navigator`: `push` is `navigate(to)`, `replace` is `navigate(to, { replace: true })`, and `back` / `forward` are `navigate(-1)` / `navigate(1)`. The router keeps a history of the last 100 locations.
 - `Link`, React Router's plain navigation element, next to `NavLink`. `NavLink` gained `case_sensitive(false)`, matching React Router's `caseSensitive` default: the active check ignores case unless an application asks for exact matching.
 - Paths accept React Router's syntax: `users/:id` for a dynamic segment and `*` for a splat (also exposed as `params["*"]`). The `{id}` / `{*splat}` spellings keep working.
 - `use_pattern(cx)` returns the route pattern that matched the current location, for example `/users/:id` while the pathname is `/users/42`.
@@ -29,6 +30,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- `use_navigate(cx)` returns a `Navigator` instead of a `FnMut(SharedString)` closure: `navigate("/about".into())` becomes `navigate.push("/about")`. `RouterState` gained the `history` and `history_index` fields; `with_path` replaces the current history entry.
 - A missing `init(cx)` panics in every build, not only in debug builds, and the message names the call to add. Duplicate route paths and invalid patterns panic with the route path instead of a bare matcher error.
 - A splat route also matches its parent path, like React Router's `*`: `path("*")` covers `/`, and `files/*` covers `/files` with an empty `params["*"]`. An index or static route still wins that path.
 - Element routes also match their own path, so a parent renders with an empty outlet when no child matches; an index route still owns the parent path.

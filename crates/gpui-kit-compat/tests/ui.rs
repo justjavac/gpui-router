@@ -42,7 +42,7 @@ fn unknown_paths_fall_back_to_the_wildcard_route(cx: &mut TestAppContext) {
     window.render_frame(cx);
     {
       let mut navigate = gpui_router::use_navigate(cx);
-      navigate("/nothing-here".into());
+      navigate.push("/nothing-here");
     }
     window.render_frame(cx);
     assert_eq!(window.find("page").label(), Some("not-match"));
@@ -87,6 +87,14 @@ fn element_routes_render_their_children_through_the_outlet(cx: &mut TestAppConte
     window.click("link-team", cx);
     window.render_frame(cx);
     assert_eq!(window.find("page").label(), Some("team"));
+
+    // History: going back returns to the location before the link.
+    {
+      let mut navigate = gpui_router::use_navigate(cx);
+      navigate.back();
+    }
+    window.render_frame(cx);
+    assert_eq!(window.find("page").label(), Some("settings-profile"));
   })
   .unwrap();
 }
@@ -113,7 +121,7 @@ fn pathless_groups_render_the_matched_child(cx: &mut TestAppContext) {
     ] {
       {
         let mut navigate = gpui_router::use_navigate(cx);
-        navigate(path.into());
+        navigate.push(path);
       }
       window.render_frame(cx);
       assert_eq!(window.find("page").label(), Some(expected));
