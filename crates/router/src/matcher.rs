@@ -6,7 +6,9 @@
 //! fingerprint of the route tree: rebuilding a tree with the same paths reuses
 //! the compiled matcher.
 
-use crate::{Route, normalize_pathname};
+use crate::Route;
+#[cfg(test)]
+use crate::normalize_pathname;
 use gpui::SharedString;
 use hashbrown::HashMap;
 use matchit::Router as MatchitRouter;
@@ -77,13 +79,17 @@ thread_local! {
   pub(crate) static BUILD_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
-/// Finds the route in `routes` that matches `pathname`.
-pub(crate) fn match_path<Node: RouteNode>(routes: &[Node], basename: &str, pathname: &str) -> Option<MatchedRoute> {
+/// Finds the route in `routes` that matches `pathname`, which must already be
+/// normalized. This is the path taken while rendering, so it allocates nothing.
+pub(crate) fn match_normalized<Node: RouteNode>(
+  routes: &[Node],
+  basename: &str,
+  pathname: &str,
+) -> Option<MatchedRoute> {
   if routes.is_empty() {
     return None;
   }
 
-  let pathname = normalize_pathname(pathname);
   let matcher = cached_matcher(routes, basename);
   let matched = matcher.at(pathname.as_ref()).ok()?;
   let params = matched
@@ -97,6 +103,12 @@ pub(crate) fn match_path<Node: RouteNode>(routes: &[Node], basename: &str, pathn
     pattern: matched.value.pattern.clone(),
     params,
   })
+}
+
+/// Finds the route in `routes` that matches `pathname`, normalizing it first.
+#[cfg(test)]
+pub(crate) fn match_path<Node: RouteNode>(routes: &[Node], basename: &str, pathname: &str) -> Option<MatchedRoute> {
+  match_normalized(routes, basename, normalize_pathname(pathname).as_ref())
 }
 
 fn cached_matcher<Node: RouteNode>(routes: &[Node], basename: &str) -> Rc<Matcher> {

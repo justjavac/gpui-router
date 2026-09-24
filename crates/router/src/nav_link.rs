@@ -1,4 +1,6 @@
-use crate::{RouterState, normalize_pathname, use_navigate};
+#[cfg(test)]
+use crate::normalize_pathname;
+use crate::{RouterState, normalize_shared_pathname, use_navigate};
 use gpui::*;
 use smallvec::SmallVec;
 
@@ -77,25 +79,32 @@ impl NavLink {
   }
 }
 
+#[cfg(test)]
 fn is_active_path(pathname: &str, to: &str, end: bool) -> bool {
-  let pathname = normalize_pathname(pathname);
-  let to = normalize_pathname(to);
+  is_active(
+    normalize_pathname(pathname).as_ref(),
+    normalize_pathname(to).as_ref(),
+    end,
+  )
+}
 
+/// Both pathnames are already normalized.
+fn is_active(pathname: &str, to: &str, end: bool) -> bool {
   if to == "/" || end {
-    pathname.as_ref() == to.as_ref()
+    pathname == to
   } else {
-    pathname.as_ref() == to.as_ref()
+    pathname == to
       || pathname
-        .strip_prefix(to.as_ref())
+        .strip_prefix(to)
         .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
   }
 }
 
 impl RenderOnce for NavLink {
   fn render(mut self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-    let to = normalize_pathname(self.to.as_ref());
+    let to = normalize_shared_pathname(&self.to);
     let is_active = if cx.has_global::<RouterState>() {
-      is_active_path(
+      is_active(
         cx.global::<RouterState>().location.pathname.as_ref(),
         to.as_ref(),
         self.end,

@@ -36,8 +36,8 @@ pub use outlet::*;
 pub use route::*;
 pub use router::*;
 pub use routes::*;
-pub(crate) use state::normalize_pathname;
 pub use state::*;
+pub(crate) use state::{normalize_pathname, normalize_shared_pathname};
 
 /// Implementation details referenced by `gpui-router-macros` output.
 ///
