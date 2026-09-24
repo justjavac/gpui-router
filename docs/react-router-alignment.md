@@ -125,10 +125,13 @@ use_set_search_params(cx)
 
 ### Phase 3 — data APIs (design first)
 
-`loader`, `action`, `errorElement`, `use_loader_data`, `use_navigation`. These
-have to fit GPUI's async and entity model (when a match change triggers a
-loader, where loading state lives, how errors surface). Skipping them does not
-change the routing mental model, so they land after Phases 1 and 2.
+✅ The design pass is [data-apis.md](./data-apis.md): it scopes a faithful subset
+(`loader`, `error_element`, `use_loader_data`, `use_navigation`), the lifecycle
+rules (parallel per navigation, revalidate on parameter or search change,
+generation-based cancellation, error boundaries), the effort, and a
+recommendation — implement the subset after 0.6.0, skip `action`/`useFetcher`/
+`defer`. Whether to implement it is the maintainer's call; Phases 1 and 2 are
+complete either way.
 
 ## Migration notes
 
