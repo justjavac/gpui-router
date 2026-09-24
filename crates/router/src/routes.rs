@@ -1,14 +1,8 @@
+use crate::matcher::MatchedRoute;
 use crate::{Route, RouterState, normalize_pathname};
 use gpui::prelude::*;
 use gpui::{App, Empty, SharedString, Window};
-use hashbrown::HashMap;
 use smallvec::SmallVec;
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct MatchedRoute {
-  pub(crate) pattern: SharedString,
-  pub(crate) params: HashMap<SharedString, SharedString>,
-}
 
 /// Renders a branch of [`Route`](crate::Route) that best matches the current path.
 #[derive(IntoElement)]
@@ -57,23 +51,7 @@ impl Routes {
   }
 
   pub(crate) fn match_route(&self, pathname: &str) -> Option<MatchedRoute> {
-    let pathname = normalize_pathname(pathname);
-    let mut route_map = matchit::Router::new();
-    for route in self.routes.iter() {
-      route_map.merge(route.build_route_map(self.basename.as_ref())).unwrap();
-    }
-
-    let matched = route_map.at(pathname.as_ref()).ok()?;
-    let params = matched
-      .params
-      .iter()
-      .map(|(key, value)| (key.to_owned().into(), value.to_owned().into()))
-      .collect();
-
-    Some(MatchedRoute {
-      pattern: matched.value.clone(),
-      params,
-    })
+    crate::matcher::match_path(&self.routes, self.basename.as_ref(), pathname)
   }
 
   pub(crate) fn apply_match(cx: &mut App, pathname: SharedString, matched: Option<&MatchedRoute>) {
@@ -100,14 +78,10 @@ impl RenderOnce for Routes {
     let matched = self.match_route(pathname.as_ref());
     Self::apply_match(cx, pathname, matched.as_ref());
 
-    if let Some(matched) = matched {
-      let route = self
-        .routes
-        .into_iter()
-        .find(|route| route.contains_pattern(self.basename.as_ref(), matched.pattern.as_ref()));
-      if let Some(route) = route {
-        return route.basename(self.basename).into_any_element();
-      }
+    if let Some(matched) = matched
+      && let Some(route) = self.routes.into_iter().nth(matched.index)
+    {
+      return route.basename(self.basename).into_any_element();
     }
 
     Empty {}.into_any_element()

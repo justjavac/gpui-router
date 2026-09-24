@@ -1,7 +1,7 @@
+use crate::matcher;
 use crate::outlet::with_outlet_scope;
 use crate::{Layout, RouterState, normalize_pathname};
 use gpui::*;
-use matchit::Router as MatchitRouter;
 use smallvec::SmallVec;
 use std::fmt::{Debug, Display};
 
@@ -17,7 +17,7 @@ pub fn route() -> impl IntoElement {
 #[derive(IntoElement)]
 pub struct Route {
   basename: SharedString,
-  path: Option<SharedString>,
+  pub(crate) path: Option<SharedString>,
   pub(crate) element: Option<RouteElementFactory>,
   pub(crate) routes: SmallVec<[Box<Route>; 1]>,
   pub(crate) layout: Option<Box<dyn Layout>>,
@@ -144,37 +144,6 @@ impl Route {
     normalize_pathname(path)
   }
 
-  pub(crate) fn build_route_map(&self, basename: &str) -> MatchitRouter<SharedString> {
-    let mut router_map = MatchitRouter::new();
-    let path = self.full_path(basename);
-
-    for route in self.routes.iter() {
-      router_map.merge(route.build_route_map(path.as_ref())).unwrap();
-    }
-
-    // A route that renders an element also matches its own path, so the element
-    // can render with an empty outlet when no child matches. A child that
-    // registers the same path wins, which is what an index route does.
-    if self.element.is_some() {
-      let _ = router_map.insert(path.as_ref(), path.clone());
-    }
-
-    router_map
-  }
-
-  pub(crate) fn contains_pattern(&self, basename: &str, pattern: &str) -> bool {
-    let path = self.full_path(basename);
-
-    if self.element.is_some() && path.as_ref() == pattern {
-      return true;
-    }
-
-    self
-      .routes
-      .iter()
-      .any(|route| route.contains_pattern(path.as_ref(), pattern))
-  }
-
   /// Renders and removes the child that matches the current pathname.
   fn take_matched_child(
     routes: &mut SmallVec<[Box<Route>; 1]>,
@@ -183,16 +152,8 @@ impl Route {
     cx: &mut App,
   ) -> Option<AnyElement> {
     let pathname = normalize_pathname(cx.global::<RouterState>().location.pathname.as_ref());
-    let mut route_map = MatchitRouter::new();
-    for route in routes.iter() {
-      route_map.merge(route.build_route_map(basename)).unwrap();
-    }
-
-    let matched = route_map.at(pathname.as_ref()).ok()?;
-    let index = routes
-      .iter()
-      .position(|route| route.contains_pattern(basename, matched.value.as_ref()))?;
-    let route = routes.remove(index);
+    let matched = matcher::match_path(routes, basename, pathname.as_ref())?;
+    let route = routes.remove(matched.index);
 
     // Fully qualified because newer GPUI releases add a `View::render` for every
     // type, which makes the method call ambiguous.
