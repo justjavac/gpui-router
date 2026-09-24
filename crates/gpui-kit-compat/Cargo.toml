@@ -3,6 +3,7 @@ name = "gpui-kit-compat"
 version = "0.0.0"
 description = "Unpublished harness that consumes gpui-router from a gpui-kit application."
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 publish = false
 

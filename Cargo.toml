@@ -9,6 +9,9 @@ homepage = "https://github.com/justjavac/gpui-router"
 repository = "https://github.com/justjavac/gpui-router"
 license = "MIT"
 edition = "2024"
+# Floor for the whole workspace: the highest `rust-version` declared by the
+# resolved dependency tree of `gpui-router` (see RELEASING.md).
+rust-version = "1.88"
 readme = "README.md"
 publish = false
 
