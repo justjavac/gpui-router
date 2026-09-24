@@ -151,8 +151,9 @@ impl Route {
     window: &mut Window,
     cx: &mut App,
   ) -> Option<AnyElement> {
-    let pathname = normalize_pathname(cx.global::<RouterState>().location.pathname.as_ref());
-    let matched = matcher::match_path(routes, basename, pathname.as_ref())?;
+    // The location pathname is normalized, so matching borrows it as is.
+    let pathname = cx.global::<RouterState>().location.pathname.clone();
+    let matched = matcher::match_normalized(routes, basename, pathname.as_ref())?;
     let route = routes.remove(matched.index);
 
     // Fully qualified because newer GPUI releases add a `View::render` for every
