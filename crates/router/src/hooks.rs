@@ -4,21 +4,22 @@ use hashbrown::HashMap;
 
 /// Returns a function that lets you navigate programmatically in response to user interactions or effects.
 pub fn use_navigate(cx: &mut App) -> impl FnMut(SharedString) + '_ {
+  let state = RouterState::require_mut(cx);
   move |path: SharedString| {
-    cx.global_mut::<RouterState>().with_path(path);
+    state.with_path(path);
   }
 }
 
 /// Returns the current [Location](crate::Location).
 /// This can be useful if you'd like to perform some side effect whenever it changes.
 pub fn use_location(cx: &App) -> &Location {
-  &cx.global::<RouterState>().location
+  &RouterState::require(cx).location
 }
 
 /// Returns the route pattern that matched the current location, if any.
 /// For example, `/users/{id}` while the pathname is `/users/42`.
 pub fn use_pattern(cx: &App) -> Option<&SharedString> {
-  cx.global::<RouterState>().matched_pattern.as_ref()
+  RouterState::require(cx).matched_pattern.as_ref()
 }
 
 /// Returns the current route parameters as a map of key-value pairs.
@@ -26,7 +27,7 @@ pub fn use_pattern(cx: &App) -> Option<&SharedString> {
 /// For example, if you have a route defined as `/user/{id}`,
 /// you can access the `id` parameter using this hook.
 pub fn use_params(cx: &App) -> &HashMap<SharedString, SharedString> {
-  &cx.global::<RouterState>().params
+  &RouterState::require(cx).params
 }
 
 #[cfg(all(test, any(feature = "gpui", feature = "test-support")))]

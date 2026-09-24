@@ -152,7 +152,7 @@ impl Route {
     cx: &mut App,
   ) -> Option<AnyElement> {
     // The location pathname is normalized, so matching borrows it as is.
-    let pathname = cx.global::<RouterState>().location.pathname.clone();
+    let pathname = RouterState::require(cx).location.pathname.clone();
     let matched = matcher::match_normalized(routes, basename, pathname.as_ref())?;
     let route = routes.remove(matched.index);
 

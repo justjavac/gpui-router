@@ -124,7 +124,8 @@ fn main() {
 
 **Note:** Router state is global. `Routes` stores the matched location in a
 process-wide `RouterState`, so call `gpui_router::init` once during startup and
-render one `Routes` tree per window.
+render one `Routes` tree per window. Rendering without that call panics with the
+line to add, instead of silently rendering the wrong thing.
 
 ### Reading the location
 

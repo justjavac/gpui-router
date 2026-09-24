@@ -63,7 +63,7 @@ impl Routes {
   /// Writes the match into the global router state, reusing the existing
   /// parameter map so a render pass does not allocate one per frame.
   pub(crate) fn apply_match(cx: &mut App, pathname: SharedString, matched: Option<MatchedRoute>) {
-    let state = cx.global_mut::<RouterState>();
+    let state = RouterState::require_mut(cx);
     state.location.pathname = pathname;
 
     state.matched_pattern = matched.as_ref().map(|matched| matched.pattern.clone());
@@ -76,11 +76,7 @@ impl Routes {
 
 impl RenderOnce for Routes {
   fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-    if cfg!(debug_assertions) && !cx.has_global::<RouterState>() {
-      panic!("RouterState not initialized");
-    }
-
-    let pathname = normalize_shared_pathname(&cx.global::<RouterState>().location.pathname);
+    let pathname = normalize_shared_pathname(&RouterState::require(cx).location.pathname);
     let matched = self.match_normalized(pathname.as_ref());
     let index = matched.as_ref().map(|matched| matched.index);
     Self::apply_match(cx, pathname, matched);
