@@ -133,7 +133,7 @@ Hooks read the router state from any `Render` implementation or event handler:
 | Hook | Returns |
 | --- | --- |
 | `use_location(cx)` | the current `Location` (a normalized pathname) |
-| `use_pattern(cx)` | the route pattern that matched, for example `/users/{id}` |
+| `use_pattern(cx)` | the route pattern that matched, for example `/users/:id` |
 | `use_params(cx)` | the dynamic parameters of the current match |
 | `use_navigate(cx)` | a closure that navigates to another path |
 
@@ -149,6 +149,10 @@ fn user_page(cx: &App) -> impl IntoElement {
 ```
 
 ### Nested routes
+
+Paths use React Router's syntax: `users/:id` for a dynamic segment and `*` for
+a splat. The `{id}` and `{*splat}` spellings of the matcher keep working, so
+existing routes do not have to change.
 
 Give a route children and render an `Outlet` where the matched child should
 appear:

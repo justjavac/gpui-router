@@ -92,15 +92,24 @@ pub(crate) fn match_normalized<Node: RouteNode>(
 
   let matcher = cached_matcher(routes, basename);
   let matched = matcher.at(pathname.as_ref()).ok()?;
-  let params = matched
+  let mut params: HashMap<SharedString, SharedString> = matched
     .params
     .iter()
     .map(|(key, value)| (key.to_owned().into(), value.to_owned().into()))
     .collect();
 
+  // React Router names the splat parameter `*`; expose it under that name as
+  // well as the matcher's `splat` when the route was written as `path("*")`.
+  let pattern = matched.value.pattern.clone();
+  if pattern.split('/').any(|segment| segment == "*")
+    && let Some(value) = params.get("splat").cloned()
+  {
+    params.insert(SharedString::from("*"), value);
+  }
+
   Some(MatchedRoute {
     index: matched.value.index,
-    pattern: matched.value.pattern.clone(),
+    pattern,
     params,
   })
 }
@@ -167,8 +176,9 @@ fn route_map(route: &Route, basename: &str, index: usize) -> RouteMap {
   // can render with an empty outlet when no child matches. A child that
   // registers the same path wins, which is what an index route does.
   if route.element.is_some() {
+    let pattern = translate_pattern(path.as_ref());
     let _ = map.insert(
-      path.as_ref(),
+      pattern.as_str(),
       RouteTarget {
         index,
         pattern: path.clone(),
@@ -177,6 +187,31 @@ fn route_map(route: &Route, basename: &str, index: usize) -> RouteMap {
   }
 
   map
+}
+
+/// Translates a React Router path pattern into the syntax the matcher uses:
+/// `:id` becomes `{id}` and `*` becomes `{*splat}`. Patterns that already use
+/// the `{id}` / `{*splat}` syntax pass through unchanged.
+fn translate_pattern(path: &str) -> String {
+  let mut translated = String::with_capacity(path.len());
+
+  for (index, segment) in path.split('/').enumerate() {
+    if index > 0 {
+      translated.push('/');
+    }
+
+    if segment == "*" {
+      translated.push_str("{*splat}");
+    } else if let Some(name) = segment.strip_prefix(':') {
+      translated.push('{');
+      translated.push_str(name);
+      translated.push('}');
+    } else {
+      translated.push_str(segment);
+    }
+  }
+
+  translated
 }
 
 fn fingerprint<Node: RouteNode>(routes: &[Node], basename: &str) -> u64 {
@@ -198,8 +233,9 @@ fn hash_routes<Node: RouteNode>(routes: &[Node], hasher: &mut impl Hasher) {
 
 #[cfg(test)]
 mod tests {
-  use super::{BUILD_COUNT, compile, match_path};
+  use super::{BUILD_COUNT, compile, match_path, translate_pattern};
   use crate::Route;
+  use gpui::SharedString;
   use std::time::Instant;
 
   fn build_count() -> usize {
@@ -299,5 +335,36 @@ mod tests {
     let _ = match_path(&changed, "/", "/other").unwrap();
 
     assert!(build_count() > before);
+  }
+
+  #[test]
+  fn test_react_router_path_syntax() {
+    assert_eq!(translate_pattern("/users/:id"), "/users/{id}");
+    assert_eq!(translate_pattern("/files/*"), "/files/{*splat}");
+    assert_eq!(translate_pattern("/"), "/");
+    // matchit syntax and partial segments pass through.
+    assert_eq!(translate_pattern("/users/{id}"), "/users/{id}");
+    assert_eq!(translate_pattern("/time:now"), "/time:now");
+  }
+
+  #[test]
+  fn test_dynamic_segments_use_both_syntaxes() {
+    for path in ["users/:id", "users/{id}"] {
+      let routes = vec![Route::new().path(path).element(|_, _| "user")];
+      let matched = match_path(&routes, "/", "/users/42").unwrap();
+
+      assert_eq!(matched.pattern, SharedString::from(format!("/{path}")));
+      assert_eq!(matched.params.get("id").map(|value| value.as_ref()), Some("42"));
+    }
+  }
+
+  #[test]
+  fn test_splat_is_exposed_as_star() {
+    let routes = vec![Route::new().path("files/*").element(|_, _| "files")];
+    let matched = match_path(&routes, "/", "/files/a/b.txt").unwrap();
+
+    assert_eq!(matched.pattern, "/files/*");
+    assert_eq!(matched.params.get("splat").map(|value| value.as_ref()), Some("a/b.txt"));
+    assert_eq!(matched.params.get("*").map(|value| value.as_ref()), Some("a/b.txt"));
   }
 }
