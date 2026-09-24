@@ -12,6 +12,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Relative targets, like React Router: `Link::new().to("about")` inside a route resolves against that route, `to=".."` climbs one route, and `Link::relative(Relative::Path)` (also on `NavLink` and `Navigator`) resolves against the current pathname instead. `Redirect` and `use_match` follow the same rule.
 - `Redirect`, React Router's `<Navigate>`: `Redirect::to("/login")` navigates while it renders, and `.replace(true)` replaces the current history entry. A redirect whose target is already current does nothing, so a re-render cannot navigate twice.
 - A location now carries `search` (the `?…` part), `hash` (the `#…` part) and `key`, like React Router's `location`, and navigating to `"/search?q=rust#results"` keeps those parts instead of treating them as a pathname. `use_search_params(cx)` reads the query string as key/value pairs, and `use_set_search_params(cx)` navigates with new ones (`push` or `replace`).
 - `use_matches(cx)` returns the matched routes from the root to the leaf, with each route's pattern and concrete pathname, which is what breadcrumbs are built from in React Router. `use_match(cx, "users/:id")` answers whether a pattern matches the current location.
@@ -33,6 +34,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- A target that does not start with `/` is now relative, as it is in React Router: `to("about")` used to mean `/about` and now means the route's own child. Absolute targets are unaffected, and an event handler falls back to the deepest matched route, since no element is rendering at that point.
 - `Location` gained the `search`, `hash` and `key` fields, so a literal `Location { pathname }` no longer compiles; `Location::default()` and the navigation APIs are unaffected. `RouterState` gained `search_params` next to the raw `location.search`.
 - `use_navigate(cx)` returns a `Navigator` instead of a `FnMut(SharedString)` closure: `navigate("/about".into())` becomes `navigate.push("/about")`. `RouterState` gained the `history` and `history_index` fields; `with_path` replaces the current history entry.
 - A missing `init(cx)` panics in every build, not only in debug builds, and the message names the call to add. Duplicate route paths and invalid patterns panic with the route path instead of a bare matcher error.

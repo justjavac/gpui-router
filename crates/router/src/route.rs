@@ -1,5 +1,6 @@
 use crate::matcher;
 use crate::outlet::with_outlet_scope;
+use crate::state::with_render_route;
 use crate::{Layout, RouterState, normalize_pathname};
 use gpui::*;
 use smallvec::SmallVec;
@@ -165,19 +166,25 @@ impl Route {
 impl RenderOnce for Route {
   fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
     let basename = self.full_path(self.basename.as_ref());
-    RouterState::require_mut(cx).record_match(&basename);
+    let route_index = RouterState::require_mut(cx).record_match(&basename);
     let mut routes = std::mem::take(&mut self.routes);
 
     if let Some(element_fn) = self.element {
       let child = Route::take_matched_child(&mut routes, basename.as_ref(), window, cx);
-      return with_outlet_scope(child, || element_fn(window, cx));
+      // The outlet scope has to cover the element closure, because that is when
+      // the outlet is built; the render route only has to cover the same call.
+      return with_outlet_scope(child, || {
+        with_render_route(Some(route_index), || element_fn(window, cx))
+      });
     }
 
     if let Some(mut layout) = self.layout {
       if let Some(child) = Route::take_matched_child(&mut routes, basename.as_ref(), window, cx) {
         layout.outlet(child);
       }
-      return layout.render_layout(window, cx).into_any_element();
+      return with_render_route(Some(route_index), || {
+        layout.render_layout(window, cx).into_any_element()
+      });
     }
 
     // A route with children but no chrome of its own renders the matched child

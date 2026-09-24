@@ -1,5 +1,6 @@
 use crate::matcher::matches_pattern;
-use crate::{Location, Match, RouterState, SearchParams};
+use crate::state::resolve_target;
+use crate::{Location, Match, Relative, RouterState, SearchParams};
 use gpui::{App, SharedString};
 use hashbrown::HashMap;
 
@@ -17,19 +18,30 @@ use hashbrown::HashMap;
 /// same (`window.refresh()`).
 pub struct Navigator<'a> {
   state: &'a mut RouterState,
+  relative: Relative,
 }
 
 impl Navigator<'_> {
+  /// Resolves the following targets against the current pathname instead of the
+  /// current route, like React Router's `relative: "path"`. The default is
+  /// [`Relative::Route`].
+  pub fn relative(&mut self, relative: Relative) -> &mut Self {
+    self.relative = relative;
+    self
+  }
+
   /// Navigates to `to`, like React Router's `navigate(to)`.
   pub fn push(&mut self, to: impl Into<SharedString>) {
-    let location = Location::parse(to.into());
+    let target = resolve_target(self.state, to.into().as_ref(), self.relative);
+    let location = Location::parse(target);
     self.state.push_location(location);
   }
 
   /// Navigates to `to` without adding a history entry, like
   /// `navigate(to, { replace: true })`.
   pub fn replace(&mut self, to: impl Into<SharedString>) {
-    let location = Location::parse(to.into());
+    let target = resolve_target(self.state, to.into().as_ref(), self.relative);
+    let location = Location::parse(target);
     self.state.replace_location(location);
   }
 
@@ -50,6 +62,7 @@ impl Navigator<'_> {
 pub fn use_navigate(cx: &mut App) -> Navigator<'_> {
   Navigator {
     state: RouterState::require_mut(cx),
+    relative: Relative::Route,
   }
 }
 
@@ -127,9 +140,10 @@ pub fn use_set_search_params(cx: &mut App) -> SearchParamsSetter<'_> {
 /// relative path work.
 pub fn use_match(cx: &App, pattern: &str) -> Option<Match> {
   let state = RouterState::require(cx);
+  let pattern = resolve_target(state, pattern, Relative::Route);
 
-  matches_pattern(pattern, state.location.pathname.as_ref()).then(|| Match {
-    pattern: SharedString::from(pattern.to_owned()),
+  matches_pattern(pattern.as_ref(), state.location.pathname.as_ref()).then(|| Match {
+    pattern: pattern.clone(),
     pathname: state.location.pathname.clone(),
   })
 }
@@ -280,7 +294,8 @@ pub mod tests {
       }
 
       let matched = use_match(cx, "users/:id").expect("the pattern matches");
-      assert_eq!(matched.pattern, "users/:id");
+      // The pattern is reported resolved, like React Router's match.
+      assert_eq!(matched.pattern, "/users/:id");
       assert_eq!(matched.pathname, "/users/42");
 
       assert!(use_match(cx, "/users/{id}").is_some());
@@ -359,6 +374,59 @@ pub mod tests {
         history_length,
         "replace keeps the history length"
       );
+    });
+  }
+
+  #[gpui::test]
+  async fn test_navigator_resolves_relative_targets(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+
+      let routes = Routes::new().basename("/").child(
+        Route::new()
+          .path("settings")
+          .element(|_, _| "settings")
+          .children(vec![Route::new().path("profile").element(|_, _| "profile")]),
+      );
+      let matched = routes.match_route("/settings/profile").unwrap();
+      Routes::apply_match(cx, normalize_pathname("/settings/profile"), Some(matched));
+
+      // A navigator created while rendering resolves against that route.
+      {
+        let state = RouterState::require_mut(cx);
+        state.matches.clear();
+        state.matches.push(crate::Match {
+          pattern: SharedString::from("/settings"),
+          pathname: SharedString::from("/settings"),
+        });
+        state.matches.push(crate::Match {
+          pattern: SharedString::from("/settings/profile"),
+          pathname: SharedString::from("/settings/profile"),
+        });
+        state.current_route = Some(1);
+      }
+
+      // Route-relative (the default): a child target resolves against the route.
+      {
+        let mut nav = use_navigate(cx);
+        nav.push("billing");
+      }
+      assert_eq!(super::use_location(cx).pathname, "/settings/profile/billing");
+
+      // `..` climbs one route, not one path segment: the deepest match is
+      // `/settings/profile`, so its parent route `/settings` is the target.
+      {
+        let mut nav = use_navigate(cx);
+        nav.push("..");
+      }
+      assert_eq!(super::use_location(cx).pathname, "/settings");
+
+      // Path-relative: `..` climbs one path segment instead.
+      {
+        let mut nav = use_navigate(cx);
+        nav.relative(crate::Relative::Path).push("../billing");
+      }
+      assert_eq!(super::use_location(cx).pathname, "/billing");
     });
   }
 }

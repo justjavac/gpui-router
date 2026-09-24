@@ -119,7 +119,7 @@ use_set_search_params(cx)
 8. ✅ `use_matches()` and `use_match(pattern)`. Per-route parameters and relative patterns wait for items 9 and 11; today `Match` carries the pattern and the concrete pathname, and `use_params` gives the leaf's parameters.
 9. ✅ `Location { pathname, search, hash, key }`, `use_search_params()`, `use_set_search_params()`. `Location::state` is still open and rides with item 13.
 10. ✅ `Redirect::to(..)`, including `replace(true)`.
-11. Relative `to` resolution with `Relative::{Route, Path}`.
+11. ✅ Relative `to` resolution with `Relative::{Route, Path}`, including `..` climbing a route (`Route`, the default) or a path segment (`Path`).
 12. `gpui_router::prelude`.
 
 ### Phase 3 — data APIs (design first)
