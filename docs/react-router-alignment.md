@@ -114,12 +114,13 @@ use_set_search_params(cx)
 
 ### Phase 2 — the common API (0.6.x)
 
-6. `Link`, `NavLink::case_sensitive`, and `Navigator` with history.
-7. `use_matches()` and `use_match(pattern)`.
-8. `Location { pathname, search, hash, state, key }`, `use_search_params()`, `use_set_search_params()`.
-9. `Redirect::to(..)`.
-10. Relative `to` resolution with `Relative::{Route, Path}`.
-11. `gpui_router::prelude`.
+6. ✅ `Link`, and `NavLink::case_sensitive` with React Router's case-insensitive default.
+7. `Navigator` with `push` / `replace` / `back` / `forward` and a history stack.
+8. `use_matches()` and `use_match(pattern)`.
+9. `Location { pathname, search, hash, state, key }`, `use_search_params()`, `use_set_search_params()`.
+10. `Redirect::to(..)`.
+11. Relative `to` resolution with `Relative::{Route, Path}`.
+12. `gpui_router::prelude`.
 
 ### Phase 3 — data APIs (design first)
 

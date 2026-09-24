@@ -13,7 +13,7 @@ use gpui_kit::prelude::*;
 use gpui_kit::{
   AnyView, App, Context, IntoElement, ParentElement, Render, RenderOnce, SharedString, TestSupportExt, Window, div,
 };
-use gpui_router::{IntoLayout, NavLink, Outlet, Route, Routes};
+use gpui_router::{IntoLayout, Link, NavLink, Outlet, Route, Routes};
 
 /// The routed application view.
 pub struct DemoApp;
@@ -111,6 +111,12 @@ fn layout() -> impl IntoElement {
             .id("nav-settings")
             .test_support()
             .child(NavLink::new().to("/settings/profile").child(div().child("Settings"))),
+        )
+        .child(
+          div()
+            .id("link-team")
+            .test_support()
+            .child(Link::new().to("/about/team").child(div().child("Team link"))),
         ),
     )
     .child(Outlet::new())
