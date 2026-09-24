@@ -6,6 +6,10 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- A route with children and neither an element nor a layout rendered nothing. It now renders the matched child directly, which is React Router's pathless layout route.
+
 ### Added
 
 - `use_pattern(cx)` returns the route pattern that matched the current location, for example `/users/{id}` while the pathname is `/users/42`.

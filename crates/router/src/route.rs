@@ -120,8 +120,8 @@ impl Route {
   ///
   /// The child renders into this route's outlet: the first
   /// [`Outlet`](crate::Outlet) built inside [`Route::element`], or the layout
-  /// set with [`Route::layout`]. A child of a route that has neither renders
-  /// nothing.
+  /// set with [`Route::layout`]. A route with neither renders the matched child
+  /// directly, like a pathless layout route in React Router.
   pub fn child(mut self, child: Route) -> Self {
     self.routes.push(Box::new(child));
     self
@@ -178,6 +178,13 @@ impl RenderOnce for Route {
       }
       return layout.render_layout(window, cx).into_any_element();
     }
+
+    // A route with children but no chrome of its own renders the matched child
+    // directly, which is React Router's pathless layout route.
+    if let Some(child) = Route::take_matched_child(&mut routes, basename.as_ref(), window, cx) {
+      return child;
+    }
+
     Empty {}.into_any_element()
   }
 }
