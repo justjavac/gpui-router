@@ -19,6 +19,7 @@ mod layout;
 mod matcher;
 mod nav_link;
 mod outlet;
+mod redirect;
 mod route;
 mod router;
 // The GPUI test harness needs the backend's `test-support`: the 0.2 dev-dependency
@@ -34,6 +35,7 @@ pub use hooks::*;
 pub use layout::*;
 pub use nav_link::*;
 pub use outlet::*;
+pub use redirect::*;
 pub use route::*;
 pub use router::*;
 pub use routes::*;

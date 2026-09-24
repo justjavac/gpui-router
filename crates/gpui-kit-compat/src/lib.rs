@@ -13,7 +13,7 @@ use gpui_kit::prelude::*;
 use gpui_kit::{
   AnyView, App, Context, IntoElement, ParentElement, Render, RenderOnce, SharedString, TestSupportExt, Window, div,
 };
-use gpui_router::{IntoLayout, Link, NavLink, Outlet, Route, Routes};
+use gpui_router::{IntoLayout, Link, NavLink, Outlet, Redirect, Route, Routes};
 
 /// The routed application view.
 pub struct DemoApp;
@@ -244,4 +244,20 @@ fn not_match() -> impl IntoElement {
     .test_support()
     .aria_label(SharedString::from("not-match"))
     .child(NavLink::new().to("/").child(div().child("Go home")))
+}
+
+/// A guard-style redirect: `/` sends the application to `/about`.
+pub struct RedirectApp;
+
+impl Render for RedirectApp {
+  fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+    div().size_full().child(Routes::new().child(Route::new().children(vec![
+        Route::new()
+          .path("/")
+          .element(|_, _| Redirect::to("/about").replace(true)),
+        Route::new()
+          .path("about")
+          .element(|_, _| grouping_page("redirected-about")),
+      ])))
+  }
 }
