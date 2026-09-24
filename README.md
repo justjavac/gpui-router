@@ -124,50 +124,42 @@ fn main() {
 
 ### Nested routes
 
-Wrap child routes in a layout to keep shared chrome while the matched child
-renders into the layout's outlet:
+Give a route children and render an `Outlet` where the matched child should
+appear:
 
 ```rust
-use gpui_router::{IntoLayout, Outlet, Route, Routes};
-
-#[derive(Default, IntoElement, IntoLayout)]
-struct Shell {
-  outlet: Outlet,
-}
-
-impl Shell {
-  pub fn new() -> Self {
-    Self { outlet: Outlet::new() }
-  }
-}
-
-impl RenderOnce for Shell {
-  fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
-    div()
-      .child(NavLink::new().to("/").child(div().child("Home")))
-      .child(NavLink::new().to("/dashboard").child(div().child("Dashboard")))
-      .child(self.outlet)
-  }
-}
+use gpui_router::{NavLink, Outlet, Route, Routes};
 
 Routes::new().child(
   Route::new()
-    .layout(Shell::new())
-    .child(Route::new().index().element(|_, _| home()))
-    .child(Route::new().path("dashboard").element(|_, _| dashboard()))
-    .child(Route::new().path("{*not_match}").element(|_, _| not_match())),
+    .path("/")
+    .element(|_, _| layout())
+    .children(vec![
+      Route::new().index().element(|_, _| home()),
+      Route::new().path("dashboard").element(|_, _| dashboard()),
+      Route::new().path("{*not_match}").element(|_, _| not_match()),
+    ]),
 )
+
+fn layout() -> impl IntoElement {
+  div()
+    .child(NavLink::new().to("/").child(div().child("Home")))
+    .child(NavLink::new().to("/dashboard").child(div().child("Dashboard")))
+    .child(Outlet::new())
+}
 ```
 
-A layout needs an `outlet` field (the derive reads it) and becomes the route's
-element through `IntoLayout`; the GPUI imports are the ones used above. Nesting
-deeper works the same way: give a child route its own `.layout(...)`. See
-[examples/nested_router.rs](./crates/router/examples/nested_router.rs) for a
-complete two-level example.
+An outlet picks up the matched child while the route's element is built, so it
+has to be created inside that element closure. Nesting deeper works the same
+way: give a child route its own `.element(...)` plus children. Only the first
+outlet of an element receives the child, and an element that never creates one
+renders no child content.
 
-Routes with an `element` are leaves: the element replaces the route's children.
-Giving one a child therefore panics in debug builds instead of silently
-rendering nothing, so nested routes always go through `layout(...)`.
+When the shared chrome needs its own type and state, implement `Layout` instead
+and pass it with `Route::layout(...)`; `#[derive(IntoLayout)]` wires the outlet
+of a struct that has an `outlet` field. See
+[examples/nested_router.rs](./crates/router/examples/nested_router.rs) for a
+complete two-level example of that style.
 
 ## Examples
 

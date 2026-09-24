@@ -1,3 +1,4 @@
+use crate::outlet::with_outlet_scope;
 use crate::{Layout, RouterState, normalize_pathname};
 use gpui::*;
 use matchit::Router as MatchitRouter;
@@ -71,10 +72,11 @@ impl Route {
   /// The element to render when the route matches.
   /// Accepts a closure that returns an IntoElement, which will be called lazily when the route matches.
   ///
-  /// A route with an element is a leaf: the element replaces the route's
-  /// children, so nest routes with [`Route::layout`] instead of adding children
-  /// to an element route. Panics in debug builds if a layout or a child is
-  /// already set.
+  /// The matched child of a route with children renders into the first
+  /// [`Outlet`](crate::Outlet) created by this element, so an outlet has to be
+  /// built inside the element closure; children render only through it. Use
+  /// [`Route::layout`] instead when the surrounding chrome needs its own type.
+  /// Panics in debug builds if a layout is already set.
   ///
   /// # Examples
   /// ```
@@ -88,9 +90,6 @@ impl Route {
   {
     if cfg!(debug_assertions) && self.layout.is_some() {
       panic!("Route element and layout cannot be set at the same time");
-    }
-    if cfg!(debug_assertions) && !self.routes.is_empty() {
-      panic!("Route element and children cannot be set at the same time; nest with Route::layout instead");
     }
 
     self.element = Some(Box::new(move |window, cx| element_fn(window, cx).into_any_element()));
@@ -119,14 +118,11 @@ impl Route {
 
   /// Adds a `Route` as a child to the `Route`.
   ///
-  /// The route must be a layout route (see [`Route::layout`]): a route with an
-  /// element renders that element and ignores its children, so adding a child
-  /// to an element route panics in debug builds.
+  /// The child renders into this route's outlet: the first
+  /// [`Outlet`](crate::Outlet) built inside [`Route::element`], or the layout
+  /// set with [`Route::layout`]. A child of a route that has neither renders
+  /// nothing.
   pub fn child(mut self, child: Route) -> Self {
-    if cfg!(debug_assertions) && self.element.is_some() {
-      panic!("Route element and children cannot be set at the same time; nest with Route::layout instead");
-    }
-
     self.routes.push(Box::new(child));
     self
   }
@@ -152,56 +148,71 @@ impl Route {
     let mut router_map = MatchitRouter::new();
     let path = self.full_path(basename);
 
-    if self.element.is_some() {
-      router_map.insert(path.as_ref(), path.clone()).unwrap();
-      return router_map;
-    }
-
     for route in self.routes.iter() {
       router_map.merge(route.build_route_map(path.as_ref())).unwrap();
+    }
+
+    // A route that renders an element also matches its own path, so the element
+    // can render with an empty outlet when no child matches. A child that
+    // registers the same path wins, which is what an index route does.
+    if self.element.is_some() {
+      let _ = router_map.insert(path.as_ref(), path.clone());
     }
 
     router_map
   }
 
   pub(crate) fn contains_pattern(&self, basename: &str, pattern: &str) -> bool {
-    if self.element.is_some() {
-      return self.full_path(basename).as_ref() == pattern;
+    let path = self.full_path(basename);
+
+    if self.element.is_some() && path.as_ref() == pattern {
+      return true;
     }
 
-    let basename = self.full_path(basename);
     self
       .routes
       .iter()
-      .any(|route| route.contains_pattern(basename.as_ref(), pattern))
+      .any(|route| route.contains_pattern(path.as_ref(), pattern))
+  }
+
+  /// Renders and removes the child that matches the current pathname.
+  fn take_matched_child(
+    routes: &mut SmallVec<[Box<Route>; 1]>,
+    basename: &str,
+    window: &mut Window,
+    cx: &mut App,
+  ) -> Option<AnyElement> {
+    let pathname = normalize_pathname(cx.global::<RouterState>().location.pathname.as_ref());
+    let mut route_map = MatchitRouter::new();
+    for route in routes.iter() {
+      route_map.merge(route.build_route_map(basename)).unwrap();
+    }
+
+    let matched = route_map.at(pathname.as_ref()).ok()?;
+    let index = routes
+      .iter()
+      .position(|route| route.contains_pattern(basename, matched.value.as_ref()))?;
+    let route = routes.remove(index);
+
+    // Fully qualified because newer GPUI releases add a `View::render` for every
+    // type, which makes the method call ambiguous.
+    Some(RenderOnce::render(route.basename(basename.to_owned()), window, cx).into_any_element())
   }
 }
 
 impl RenderOnce for Route {
   fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+    let basename = self.full_path(self.basename.as_ref());
+    let mut routes = std::mem::take(&mut self.routes);
+
     if let Some(element_fn) = self.element {
-      return element_fn(window, cx);
+      let child = Route::take_matched_child(&mut routes, basename.as_ref(), window, cx);
+      return with_outlet_scope(child, || element_fn(window, cx));
     }
 
-    let basename = self.full_path(self.basename.as_ref());
-
     if let Some(mut layout) = self.layout {
-      let pathname = normalize_pathname(cx.global::<RouterState>().location.pathname.as_ref());
-      let routes = std::mem::take(&mut self.routes);
-      let mut route_map = MatchitRouter::new();
-      for route in routes.iter() {
-        route_map.merge(route.build_route_map(basename.as_ref())).unwrap();
-      }
-
-      let route = route_map.at(pathname.as_ref()).ok().and_then(|matched| {
-        routes
-          .into_iter()
-          .find(|route| route.contains_pattern(basename.as_ref(), matched.value.as_ref()))
-      });
-      if let Some(route) = route {
-        // Fully qualified because newer GPUI releases add a `View::render`
-        // for every type, which makes the method call ambiguous.
-        layout.outlet(RenderOnce::render(route.basename(basename), window, cx).into_any_element());
+      if let Some(child) = Route::take_matched_child(&mut routes, basename.as_ref(), window, cx) {
+        layout.outlet(child);
       }
       return layout.render_layout(window, cx).into_any_element();
     }
@@ -214,19 +225,12 @@ mod tests {
   use super::Route;
 
   #[test]
-  #[should_panic(expected = "Route element and children cannot be set at the same time")]
-  fn test_element_route_rejects_children() {
-    let _ = Route::new()
+  fn test_element_route_keeps_children() {
+    let route = Route::new()
       .element(|_, _| "home")
       .child(Route::new().index().element(|_, _| "index"));
-  }
 
-  #[test]
-  #[should_panic(expected = "Route element and children cannot be set at the same time")]
-  fn test_child_rejects_element() {
-    let _ = Route::new()
-      .child(Route::new().index().element(|_, _| "index"))
-      .element(|_, _| "home");
+    assert_eq!(route.routes.len(), 1);
   }
 
   #[test]
