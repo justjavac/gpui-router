@@ -15,6 +15,7 @@ pub struct NavLink {
   base: Div,
   children: SmallVec<[AnyElement; 1]>,
   to: SharedString,
+  element_id: Option<ElementId>,
   active_style: Option<Box<StyleRefinement>>,
   end: bool,
 }
@@ -25,6 +26,7 @@ impl Default for NavLink {
       base: div(),
       children: Default::default(),
       to: Default::default(),
+      element_id: None,
       active_style: None,
       end: false,
     }
@@ -57,6 +59,16 @@ impl NavLink {
   /// Sets the destination route for the navigation link.
   pub fn to(mut self, to: impl Into<SharedString>) -> Self {
     self.to = to.into();
+    self
+  }
+
+  /// Sets the id of the clickable element.
+  ///
+  /// It defaults to the target path, so several links to the same path share
+  /// that id. Use this when an application needs a stable id per link, for
+  /// example to annotate the link for tooling or accessibility.
+  pub fn element_id(mut self, id: impl Into<ElementId>) -> Self {
+    self.element_id = Some(id.into());
     self
   }
 
@@ -101,7 +113,15 @@ fn is_active(pathname: &str, to: &str, end: bool) -> bool {
 }
 
 impl RenderOnce for NavLink {
-  fn render(mut self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+  fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+    self.link_element(cx)
+  }
+}
+
+impl NavLink {
+  /// Applies the active style, the click handler and the element id, and
+  /// returns the element an application renders.
+  fn link_element(mut self, cx: &App) -> Stateful<Div> {
     let to = normalize_shared_pathname(&self.to);
     let is_active = if cx.has_global::<RouterState>() {
       is_active(
@@ -122,9 +142,11 @@ impl RenderOnce for NavLink {
       self.base.style().refine(active_style);
     }
 
+    let element_id = self.element_id.take().unwrap_or_else(|| ElementId::from(to.clone()));
+
     self
       .base
-      .id(ElementId::from(to.clone()))
+      .id(element_id)
       .on_click(move |_, window, cx| {
         let mut navigate = use_navigate(cx);
         navigate(to.clone());
@@ -136,7 +158,8 @@ impl RenderOnce for NavLink {
 
 #[cfg(test)]
 mod tests {
-  use super::is_active_path;
+  use super::{NavLink, is_active_path};
+  use gpui::{Element, ElementId};
 
   #[test]
   fn test_root_nav_link_is_only_active_on_exact_root() {
@@ -161,5 +184,18 @@ mod tests {
   fn test_nav_link_respects_segment_boundaries() {
     assert!(!is_active_path("/users", "/user", false));
     assert!(!is_active_path("/settings-and-more", "/settings", false));
+  }
+
+  #[gpui::test]
+  async fn test_nav_link_element_id(cx: &mut gpui::TestAppContext) {
+    cx.update(crate::init);
+
+    cx.update(|cx| {
+      let default_id = NavLink::new().to("/about").link_element(cx);
+      assert_eq!(Element::id(&default_id), Some(ElementId::from("/about")));
+
+      let explicit = NavLink::new().to("/about").element_id("footer-about").link_element(cx);
+      assert_eq!(Element::id(&explicit), Some(ElementId::from("footer-about")));
+    });
   }
 }

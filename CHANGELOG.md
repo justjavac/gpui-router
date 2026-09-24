@@ -9,6 +9,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - `use_pattern(cx)` returns the route pattern that matched the current location, for example `/users/{id}` while the pathname is `/users/42`.
+- `NavLink::element_id(...)` sets the id of the clickable element, which otherwise defaults to the target path.
 
 ### Removed
 
