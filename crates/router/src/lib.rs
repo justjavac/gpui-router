@@ -16,6 +16,7 @@ extern crate gpui_pre as gpui;
 
 mod hooks;
 mod layout;
+mod matcher;
 mod nav_link;
 mod outlet;
 mod route;
