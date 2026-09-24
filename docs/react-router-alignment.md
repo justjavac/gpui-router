@@ -108,7 +108,7 @@ use_set_search_params(cx)
 
 1. ✅ Pathless groups render the matched child instead of nothing.
 2. ✅ `:id` and `*` compile to the matcher; `{id}` keeps working. `:id?` is a follow-up, because an optional segment can collide with an index or sibling route and needs an explicit priority rule.
-3. A splat route also matches the parent path, so `path="*"` covers `/`.
+3. ✅ A splat route also matches the parent path, so `path="*"` covers `/`. Aliases are registered after every real pattern, so an index or static route wins regardless of declaration order.
 4. `init(cx)` panics in every build when missing; duplicate/invalid paths panic with the route that caused them.
 5. Documentation: pathless layout routes, `*` semantics, and the priority of the React Router nesting style over `Route::layout(...)`.
 

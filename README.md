@@ -152,7 +152,10 @@ fn user_page(cx: &App) -> impl IntoElement {
 
 Paths use React Router's syntax: `users/:id` for a dynamic segment and `*` for
 a splat. The `{id}` and `{*splat}` spellings of the matcher keep working, so
-existing routes do not have to change.
+existing routes do not have to change. A splat also matches its parent path,
+the way React Router's `*` does: `path("*")` covers `/` and `files/*` covers
+`/files` with an empty `params["*"]`, while a real route such as an index route
+still wins that path.
 
 Give a route children and render an `Outlet` where the matched child should
 appear:
