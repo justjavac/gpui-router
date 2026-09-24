@@ -19,6 +19,26 @@ pub(crate) fn normalize_pathname(pathname: impl AsRef<str>) -> SharedString {
   normalized.into()
 }
 
+/// Normalizes a shared pathname without allocating when it is already in the
+/// form the router stores.
+pub(crate) fn normalize_shared_pathname(pathname: &SharedString) -> SharedString {
+  let value = pathname.as_ref();
+
+  if is_normalized_pathname(value) {
+    pathname.clone()
+  } else {
+    normalize_pathname(value)
+  }
+}
+
+/// A normalized pathname starts with a single `/`, has no trailing `/` (except
+/// the root) and carries no surrounding whitespace.
+fn is_normalized_pathname(pathname: &str) -> bool {
+  pathname.starts_with('/')
+    && pathname.trim() == pathname
+    && (pathname.len() == 1 || (!pathname.ends_with('/') && !pathname.ends_with(' ')))
+}
+
 /// A Location represents a URL-like location in the router.
 /// It contains a pathname and an optional state object.
 #[derive(PartialEq, Eq, Ord, PartialOrd, Clone, Debug)]
@@ -113,6 +133,27 @@ mod tests {
   fn test_normalize_pathname_preserves_root() {
     assert_eq!(normalize_pathname("/"), "/");
     assert_eq!(normalize_pathname("////"), "/");
+  }
+
+  #[test]
+  fn test_normalize_shared_pathname_keeps_normalized_values() {
+    use super::normalize_shared_pathname;
+    use gpui::SharedString;
+
+    assert_eq!(
+      normalize_shared_pathname(&SharedString::from("/about")).as_ref(),
+      "/about"
+    );
+    assert_eq!(
+      normalize_shared_pathname(&SharedString::from("about/")).as_ref(),
+      "/about"
+    );
+    assert_eq!(
+      normalize_shared_pathname(&SharedString::from("  /about  ")).as_ref(),
+      "/about"
+    );
+    assert_eq!(normalize_shared_pathname(&SharedString::from("/")).as_ref(), "/");
+    assert_eq!(normalize_shared_pathname(&SharedString::from("////")).as_ref(), "/");
   }
 
   #[test]

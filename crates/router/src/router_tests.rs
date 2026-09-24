@@ -114,9 +114,8 @@ pub mod tests {
         .child(Route::new().path("settings").element(|_, _| "settings"));
 
       let matched = routes.match_route("/settings").unwrap();
-      Routes::apply_match(cx, normalize_pathname("/settings"), Some(&matched));
-
       assert_eq!(matched.pattern, "/settings");
+      Routes::apply_match(cx, normalize_pathname("/settings"), Some(matched));
       assert!(cx.global::<RouterState>().params.is_empty());
     });
   }
@@ -132,14 +131,14 @@ pub mod tests {
         .child(Route::new().path("about").element(|_, _| "about"));
 
       let user_match = routes.match_route("/user/42").unwrap();
-      Routes::apply_match(cx, normalize_pathname("/user/42"), Some(&user_match));
+      Routes::apply_match(cx, normalize_pathname("/user/42"), Some(user_match));
       assert_eq!(
         cx.global::<RouterState>().params.get("id").map(|value| value.as_ref()),
         Some("42")
       );
 
       let about_match = routes.match_route("/about").unwrap();
-      Routes::apply_match(cx, normalize_pathname("/about"), Some(&about_match));
+      Routes::apply_match(cx, normalize_pathname("/about"), Some(about_match));
       assert!(cx.global::<RouterState>().params.is_empty());
       assert_eq!(cx.global::<RouterState>().location.pathname, "/about");
     });
@@ -155,7 +154,7 @@ pub mod tests {
         .child(Route::new().path("user/{id}").element(|_, _| "user"));
 
       let user_match = routes.match_route("/user/42").unwrap();
-      Routes::apply_match(cx, normalize_pathname("/user/42"), Some(&user_match));
+      Routes::apply_match(cx, normalize_pathname("/user/42"), Some(user_match));
       assert_eq!(
         cx.global::<RouterState>().params.get("id").map(|value| value.as_ref()),
         Some("42")
@@ -177,9 +176,8 @@ pub mod tests {
         .child(Route::new().path("about").element(|_, _| "about"));
 
       let matched = routes.match_route("/about/").unwrap();
-      Routes::apply_match(cx, normalize_pathname("/about/"), Some(&matched));
-
       assert_eq!(matched.pattern, "/about");
+      Routes::apply_match(cx, normalize_pathname("/about/"), Some(matched));
       assert_eq!(cx.global::<RouterState>().location.pathname, "/about");
     });
   }

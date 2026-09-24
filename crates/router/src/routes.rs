@@ -1,5 +1,5 @@
 use crate::matcher::MatchedRoute;
-use crate::{Route, RouterState, normalize_pathname};
+use crate::{Route, RouterState, normalize_pathname, normalize_shared_pathname};
 use gpui::prelude::*;
 use gpui::{App, Empty, SharedString, Window};
 use smallvec::SmallVec;
@@ -50,18 +50,25 @@ impl Routes {
     &self.routes
   }
 
+  #[cfg(test)]
   pub(crate) fn match_route(&self, pathname: &str) -> Option<MatchedRoute> {
     crate::matcher::match_path(&self.routes, self.basename.as_ref(), pathname)
   }
 
-  pub(crate) fn apply_match(cx: &mut App, pathname: SharedString, matched: Option<&MatchedRoute>) {
-    let state = cx.global_mut::<RouterState>();
-    state.location.pathname = pathname.clone();
+  /// Matches an already-normalized pathname without allocating.
+  fn match_normalized(&self, pathname: &str) -> Option<MatchedRoute> {
+    crate::matcher::match_normalized(&self.routes, self.basename.as_ref(), pathname)
+  }
 
+  /// Writes the match into the global router state, reusing the existing
+  /// parameter map so a render pass does not allocate one per frame.
+  pub(crate) fn apply_match(cx: &mut App, pathname: SharedString, matched: Option<MatchedRoute>) {
+    let state = cx.global_mut::<RouterState>();
+    state.location.pathname = pathname;
+
+    state.params.clear();
     if let Some(matched) = matched {
-      state.params = matched.params.clone();
-    } else {
-      state.params.clear();
+      state.params.extend(matched.params);
     }
 
     state.path_match = None;
@@ -74,12 +81,13 @@ impl RenderOnce for Routes {
       panic!("RouterState not initialized");
     }
 
-    let pathname = normalize_pathname(cx.global::<RouterState>().location.pathname.as_ref());
-    let matched = self.match_route(pathname.as_ref());
-    Self::apply_match(cx, pathname, matched.as_ref());
+    let pathname = normalize_shared_pathname(&cx.global::<RouterState>().location.pathname);
+    let matched = self.match_normalized(pathname.as_ref());
+    let index = matched.as_ref().map(|matched| matched.index);
+    Self::apply_match(cx, pathname, matched);
 
-    if let Some(matched) = matched
-      && let Some(route) = self.routes.into_iter().nth(matched.index)
+    if let Some(index) = index
+      && let Some(route) = self.routes.into_iter().nth(index)
     {
       return route.basename(self.basename).into_any_element();
     }
