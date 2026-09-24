@@ -73,6 +73,11 @@ fn element_routes_render_their_children_through_the_outlet(cx: &mut TestAppConte
     window.click("nav-team", cx);
     window.render_frame(cx);
     assert_eq!(window.find("page").label(), Some("team"));
+    assert_eq!(
+      window.find("breadcrumbs").label(),
+      Some("/ > /about > /about/team"),
+      "use_matches reports the chain from the root to the leaf"
+    );
 
     window.click("nav-about", cx);
     window.render_frame(cx);

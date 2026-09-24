@@ -71,6 +71,9 @@ impl Routes {
     if let Some(matched) = matched {
       state.params.extend(matched.params);
     }
+
+    // The matched chain is recorded again while the router renders.
+    state.matches.clear();
   }
 }
 

@@ -30,6 +30,7 @@ The API follows React Router, so most of the knowledge transfers directly:
 | `<Link to>` | `Link::new().to(...)` |
 | `<NavLink to>` | `NavLink::new().to(...).active(...).end(...)` |
 | `useParams()`, `useLocation()` | `use_params(cx)`, `use_location(cx)` |
+| `useMatches()`, `useMatch(pattern)` | `use_matches(cx)`, `use_match(cx, "users/:id")` |
 | `useNavigate()` | `use_navigate(cx)`, a `Navigator` with `push` / `replace` / `back` / `forward` |
 | `navigate(-1)`, `navigate(1)` | `nav.back()`, `nav.forward()` |
 | `useSearchParams()`, `<Navigate>` | planned, see [the alignment plan](./docs/react-router-alignment.md) |
@@ -160,6 +161,8 @@ Hooks read the router state from any `Render` implementation or event handler:
 | `use_location(cx)` | the current `Location` (a normalized pathname) |
 | `use_pattern(cx)` | the route pattern that matched, for example `/users/:id` |
 | `use_params(cx)` | the dynamic parameters of the current match |
+| `use_matches(cx)` | the matched routes from the root to the leaf, for breadcrumbs |
+| `use_match(cx, pattern)` | whether a pattern matches the current location |
 | `use_navigate(cx)` | a `Navigator` with `push`, `replace`, `back` and `forward` |
 
 ```rust

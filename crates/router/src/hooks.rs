@@ -1,4 +1,5 @@
-use crate::{Location, RouterState};
+use crate::matcher::matches_pattern;
+use crate::{Location, Match, RouterState};
 use gpui::{App, SharedString};
 use hashbrown::HashMap;
 
@@ -72,11 +73,30 @@ pub fn use_params(cx: &App) -> &HashMap<SharedString, SharedString> {
   &RouterState::require(cx).params
 }
 
+/// Returns the routes that matched the current location, from the root to the
+/// leaf. This is React Router's `useMatches`, which breadcrumbs are usually
+/// built from.
+pub fn use_matches(cx: &App) -> &[Match] {
+  &RouterState::require(cx).matches
+}
+
+/// Matches `pattern` against the current location, like React Router's
+/// `useMatch`. Patterns are absolute for now; relative patterns arrive with the
+/// relative path work.
+pub fn use_match(cx: &App, pattern: &str) -> Option<Match> {
+  let state = RouterState::require(cx);
+
+  matches_pattern(pattern, state.location.pathname.as_ref()).then(|| Match {
+    pattern: SharedString::from(pattern.to_owned()),
+    pathname: state.location.pathname.clone(),
+  })
+}
+
 #[cfg(all(test, any(feature = "gpui", feature = "test-support")))]
 pub mod tests {
-  use super::{use_navigate, use_pattern};
+  use super::{use_match, use_matches, use_navigate, use_pattern};
   use crate::{Route, RouterState, Routes, normalize_pathname};
-  use gpui::TestAppContext;
+  use gpui::{SharedString, TestAppContext};
 
   #[gpui::test]
   async fn test_use_navigate(cx: &mut TestAppContext) {
@@ -204,6 +224,42 @@ pub mod tests {
       Routes::apply_match(cx, normalize_pathname("/missing"), None);
       assert_eq!(use_pattern(cx), None);
       assert!(cx.global::<RouterState>().params.is_empty());
+    });
+  }
+
+  #[gpui::test]
+  async fn test_use_match(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+
+      {
+        let mut nav = use_navigate(cx);
+        nav.push("/users/42");
+      }
+
+      let matched = use_match(cx, "users/:id").expect("the pattern matches");
+      assert_eq!(matched.pattern, "users/:id");
+      assert_eq!(matched.pathname, "/users/42");
+
+      assert!(use_match(cx, "/users/{id}").is_some());
+      assert!(use_match(cx, "/groups/:id").is_none());
+    });
+  }
+
+  #[gpui::test]
+  async fn test_use_matches_returns_the_recorded_chain(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+
+      {
+        let state = RouterState::require_mut(cx);
+        state.record_match(&SharedString::from("/"));
+        state.record_match(&SharedString::from("/settings"));
+        state.record_match(&SharedString::from("/settings/:section"));
+      }
+
+      let patterns: Vec<&str> = use_matches(cx).iter().map(|m| m.pattern.as_ref()).collect();
+      assert_eq!(patterns, ["/", "/settings", "/settings/:section"]);
     });
   }
 }

@@ -54,6 +54,43 @@ pub struct Location {
   pub pathname: SharedString,
 }
 
+/// A route that matched the current location, from the root to the leaf.
+///
+/// [`use_matches`](crate::use_matches) returns the chain an application needs
+/// for breadcrumbs, mirroring React Router's `useMatches`.
+#[derive(PartialEq, Eq, Ord, PartialOrd, Clone, Debug)]
+pub struct Match {
+  /// The route pattern, for example `/users/:id`.
+  pub pattern: SharedString,
+  /// The pathname that pattern matched, for example `/users/42`.
+  pub pathname: SharedString,
+}
+
+/// Builds the concrete pathname a pattern matched by substituting the dynamic
+/// segments with their parameter values.
+pub(crate) fn concrete_pathname(pattern: &str, params: &HashMap<SharedString, SharedString>) -> SharedString {
+  let mut pathname = String::with_capacity(pattern.len());
+
+  for (index, segment) in pattern.split('/').enumerate() {
+    if index > 0 {
+      pathname.push('/');
+    }
+
+    let name = segment
+      .strip_prefix("{*")
+      .and_then(|rest| rest.strip_suffix('}'))
+      .or_else(|| segment.strip_prefix(':').map(|rest| rest.trim_end_matches('}')))
+      .or_else(|| segment.strip_prefix('{').and_then(|rest| rest.strip_suffix('}')));
+
+    match name.and_then(|name| params.get(name)) {
+      Some(value) => pathname.push_str(value),
+      None => pathname.push_str(segment),
+    }
+  }
+
+  SharedString::from(if pathname.is_empty() { "/".to_string() } else { pathname })
+}
+
 impl Default for Location {
   /// Creates a default Location with pathname `/`.
   fn default() -> Self {
@@ -77,6 +114,9 @@ pub struct RouterState {
   pub matched_pattern: Option<SharedString>,
   /// The dynamic parameters for the current location.
   pub params: HashMap<SharedString, SharedString>,
+  /// The routes that matched the current location, from the root to the leaf.
+  /// Filled while the router renders, like React Router's `useMatches`.
+  pub matches: Vec<Match>,
   /// Locations visited before and after the current one, oldest first.
   pub history: Vec<Location>,
   /// Index of [`RouterState::location`] inside
@@ -95,6 +135,7 @@ impl RouterState {
       location: location.clone(),
       matched_pattern: None,
       params: HashMap::new(),
+      matches: Vec::new(),
       history: vec![location],
       history_index: 0,
     };
@@ -123,6 +164,16 @@ impl RouterState {
 
     self.history_index = self.history.len() - 1;
     self.location = location;
+  }
+
+  /// Records a route of the chain that is being rendered, which is what
+  /// [`use_matches`](crate::use_matches) returns.
+  pub(crate) fn record_match(&mut self, pattern: &SharedString) {
+    let pathname = concrete_pathname(pattern.as_ref(), &self.params);
+    self.matches.push(Match {
+      pattern: pattern.clone(),
+      pathname,
+    });
   }
 
   /// Navigates to a location, replacing the current history entry.
@@ -232,6 +283,7 @@ mod tests {
       location: Location::default(),
       matched_pattern: None,
       params: Default::default(),
+      matches: Vec::new(),
       history: vec![Location::default()],
       history_index: 0,
     };
@@ -258,6 +310,7 @@ mod tests {
       location: Location::default(),
       matched_pattern: None,
       params: Default::default(),
+      matches: Vec::new(),
       history: vec![Location::default()],
       history_index: 0,
     };

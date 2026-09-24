@@ -73,7 +73,7 @@ pub struct OutletApp;
 impl Render for OutletApp {
   fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
     div().size_full().child(
-      Routes::new().child(Route::new().path("/").element(|_, _| layout()).children(vec![
+      Routes::new().child(Route::new().path("/").element(|_, cx| layout(cx)).children(vec![
         Route::new().index().element(|_, _| home()),
         Route::new().path("about").element(|_, _| about_layout()).children(vec![
           Route::new().index().element(|_, _| about()),
@@ -89,7 +89,7 @@ impl Render for OutletApp {
   }
 }
 
-fn layout() -> impl IntoElement {
+fn layout(cx: &App) -> impl IntoElement + use<> {
   div()
     .id("shell")
     .child(
@@ -117,9 +117,21 @@ fn layout() -> impl IntoElement {
             .id("link-team")
             .test_support()
             .child(Link::new().to("/about/team").child(div().child("Team link"))),
-        ),
+        )
+        .child(div().id("breadcrumbs").test_support().aria_label(breadcrumbs(cx))),
     )
     .child(Outlet::new())
+}
+
+/// The chain `use_matches` returns, which is what breadcrumbs are built from.
+fn breadcrumbs(cx: &App) -> SharedString {
+  SharedString::from(
+    gpui_router::use_matches(cx)
+      .iter()
+      .map(|matched| matched.pathname.clone())
+      .collect::<Vec<_>>()
+      .join(" > "),
+  )
 }
 
 fn about_layout() -> impl IntoElement {

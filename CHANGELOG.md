@@ -12,6 +12,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `use_matches(cx)` returns the matched routes from the root to the leaf, with each route's pattern and concrete pathname, which is what breadcrumbs are built from in React Router. `use_match(cx, "users/:id")` answers whether a pattern matches the current location.
 - `use_navigate(cx)` returns a `Navigator`: `push` is `navigate(to)`, `replace` is `navigate(to, { replace: true })`, and `back` / `forward` are `navigate(-1)` / `navigate(1)`. The router keeps a history of the last 100 locations.
 - `Link`, React Router's plain navigation element, next to `NavLink`. `NavLink` gained `case_sensitive(false)`, matching React Router's `caseSensitive` default: the active check ignores case unless an application asks for exact matching.
 - Paths accept React Router's syntax: `users/:id` for a dynamic segment and `*` for a splat (also exposed as `params["*"]`). The `{id}` / `{*splat}` spellings keep working.
