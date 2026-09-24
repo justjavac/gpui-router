@@ -1,7 +1,7 @@
 use gpui_kit::component::Root;
 use gpui_kit::test::TestWindowExt;
 use gpui_kit::{Context, TestAppContext, prelude::*, px, size};
-use gpui_kit_compat::{DemoApp, OutletApp, root};
+use gpui_kit_compat::{DemoApp, GroupingApp, OutletApp, root};
 
 #[gpui_kit::test]
 fn router_renders_kit_components_and_navigates(cx: &mut TestAppContext) {
@@ -82,6 +82,37 @@ fn element_routes_render_their_children_through_the_outlet(cx: &mut TestAppConte
     window.click("nav-settings", cx);
     window.render_frame(cx);
     assert_eq!(window.find("page").label(), Some("settings-profile"));
+  })
+  .unwrap();
+}
+
+#[gpui_kit::test]
+fn pathless_groups_render_the_matched_child(cx: &mut TestAppContext) {
+  cx.update(gpui_kit::init);
+  cx.update(gpui_router::init);
+
+  let handle = cx.open_window(size(px(640.), px(480.)), |window, cx: &mut Context<Root>| {
+    let view = cx.new(|_| GroupingApp);
+    root(view, window, cx)
+  });
+
+  cx.update_window(handle.into(), |_, window, cx| {
+    window.render_frame(cx);
+    assert!(window.try_find("page").is_none(), "nothing renders before a match");
+
+    for (path, expected) in [
+      ("/settings/profile", "settings-profile"),
+      ("/settings/billing", "settings-billing"),
+      ("/settings/users/42", "user-42"),
+      ("/settings/account/security", "account-security"),
+    ] {
+      {
+        let mut navigate = gpui_router::use_navigate(cx);
+        navigate(path.into());
+      }
+      window.render_frame(cx);
+      assert_eq!(window.find("page").label(), Some(expected));
+    }
   })
   .unwrap();
 }

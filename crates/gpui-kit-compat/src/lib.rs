@@ -170,6 +170,39 @@ fn settings_profile() -> impl IntoElement {
     .aria_label(SharedString::from("settings-profile"))
 }
 
+/// A route with children but no chrome of its own — React Router's pathless
+/// layout route — renders the matched child directly.
+pub struct GroupingApp;
+
+impl Render for GroupingApp {
+  fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+    div()
+      .size_full()
+      .child(Routes::new().child(Route::new().path("settings").children(vec![
+        Route::new().path("profile").element(|_, _| grouping_page("settings-profile")),
+        Route::new().path("billing").element(|_, _| grouping_page("settings-billing")),
+        Route::new().path("users/{id}").element(|_, cx| grouping_page_with_params(cx)),
+        Route::new().path("account").children(vec![
+          Route::new()
+            .path("security")
+            .element(|_, _| grouping_page("account-security")),
+        ]),
+      ])))
+  }
+}
+
+fn grouping_page(name: &'static str) -> impl IntoElement {
+  div().id("page").test_support().aria_label(SharedString::from(name))
+}
+
+fn grouping_page_with_params(cx: &App) -> impl IntoElement + use<> {
+  let id = gpui_router::use_params(cx).get("id").cloned().unwrap_or_default();
+  div()
+    .id("page")
+    .test_support()
+    .aria_label(SharedString::from(format!("user-{id}")))
+}
+
 fn not_match() -> impl IntoElement {
   div()
     .id("page")

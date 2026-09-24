@@ -106,7 +106,7 @@ use_set_search_params(cx)
 
 ### Phase 1 — corrections and syntax alignment (0.6.0)
 
-1. Pathless groups render the matched child instead of nothing.
+1. ✅ Pathless groups render the matched child instead of nothing.
 2. `:id`, `*` and `:id?` compile to the matcher; `{id}` keeps working.
 3. A splat route also matches the parent path, so `path="*"` covers `/`.
 4. `init(cx)` panics in every build when missing; duplicate/invalid paths panic with the route that caused them.
