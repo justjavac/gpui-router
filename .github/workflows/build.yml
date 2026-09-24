@@ -65,25 +65,15 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      # Caches the cargo registry and the target directory. GPUI dominates the
+      # build time, so this keeps the matrix jobs from recompiling it every run.
+      - name: Cache cargo and target
+        uses: Swatinem/rust-cache@v2
+
       - name: Log versions
         run: |
           rustc --version
           cargo --version
-
-      # - name: Cache
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: |-
-      #       ~/.cargo/registry/index/
-      #       ~/.cargo/registry/cache/
-      #       ~/.cargo/git/db/
-      #       target/*/.*
-      #       target/*/build
-      #       target/*/deps
-      #     key:
-      #       ${{ matrix.config.os }}-${{ hashFiles('Cargo.lock') }}
-      #     restore-keys: |
-      #       ${{ matrix.config.os }}-
 
       - name: Run cargo fmt
         run: cargo fmt --all -- --check
@@ -109,3 +99,83 @@ jobs:
       #     CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       #   run: |
       #     cargo publish
+
+  # `cargo package` is what refused to run when a path dependency was missing a
+  # version requirement, so the release is gated on it instead of finding out at
+  # publish time.
+  package:
+    name: package
+    runs-on: ubuntu-latest
+
+    env:
+      CARGO_INCREMENTAL: 0
+      RUST_BACKTRACE: full
+      CARGO_TERM_COLOR: always
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+              gcc g++ clang libfontconfig-dev libwayland-dev \
+              libwebkit2gtk-4.1-dev libxkbcommon-x11-dev \
+              libx11-xcb-dev libxcb1-dev \
+              libssl-dev libzstd-dev \
+              vulkan-validationlayers libvulkan1 \
+              mold
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Cache cargo and target
+        uses: Swatinem/rust-cache@v2
+
+      - name: Package gpui-router-macros
+        run: cargo package -p gpui-router-macros --locked
+
+      - name: Package gpui-router
+        run: cargo package -p gpui-router --locked
+
+  # The workspace declares `rust-version`, so the floor is checked instead of
+  # being a claim nobody verifies.
+  msrv:
+    name: msrv
+    runs-on: ubuntu-latest
+
+    env:
+      CARGO_INCREMENTAL: 0
+      RUST_BACKTRACE: full
+      CARGO_TERM_COLOR: always
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+              gcc g++ clang libfontconfig-dev libwayland-dev \
+              libwebkit2gtk-4.1-dev libxkbcommon-x11-dev \
+              libx11-xcb-dev libxcb1-dev \
+              libssl-dev libzstd-dev \
+              vulkan-validationlayers libvulkan1 \
+              mold
+
+      - name: Install the minimum supported toolchain
+        uses: dtolnay/rust-toolchain@1.88.0
+
+      - name: Cache cargo and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: msrv
+
+      - name: Check with the minimum supported toolchain
+        run: cargo check -p gpui-router --locked

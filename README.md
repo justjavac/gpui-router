@@ -122,6 +122,10 @@ fn main() {
 
 **Note:** The `element()` method now accepts a closure that returns an `IntoElement`. This allows for lazy evaluation of route elements - they are only rendered when the route matches, improving performance when you have many routes.
 
+**Note:** Router state is global. `Routes` stores the matched location in a
+process-wide `RouterState`, so call `gpui_router::init` once during startup and
+render one `Routes` tree per window.
+
 ### Nested routes
 
 Give a route children and render an `Outlet` where the matched child should
