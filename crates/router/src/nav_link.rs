@@ -90,7 +90,7 @@ impl Link {
       .id(element_id)
       .on_click(move |_, window, cx| {
         let mut navigate = use_navigate(cx);
-        navigate(to.clone());
+        navigate.push(to.clone());
         window.refresh();
       })
       .children(self.children)

@@ -29,8 +29,10 @@ The API follows React Router, so most of the knowledge transfers directly:
 | `path="*"` | the same, and it matches `/` like React Router |
 | `<Link to>` | `Link::new().to(...)` |
 | `<NavLink to>` | `NavLink::new().to(...).active(...).end(...)` |
-| `useParams()`, `useLocation()`, `useNavigate()` | `use_params(cx)`, `use_location(cx)`, `use_navigate(cx)` |
-| `navigate(-1)`, `useSearchParams()`, `<Navigate>` | planned, see [the alignment plan](./docs/react-router-alignment.md) |
+| `useParams()`, `useLocation()` | `use_params(cx)`, `use_location(cx)` |
+| `useNavigate()` | `use_navigate(cx)`, a `Navigator` with `push` / `replace` / `back` / `forward` |
+| `navigate(-1)`, `navigate(1)` | `nav.back()`, `nav.forward()` |
+| `useSearchParams()`, `<Navigate>` | planned, see [the alignment plan](./docs/react-router-alignment.md) |
 | `loader`, `action`, `errorElement` | not planned yet; the plan covers a design pass first |
 
 Two deliberate differences: `Route::layout(...)` plus `#[derive(IntoLayout)]` has
@@ -158,7 +160,7 @@ Hooks read the router state from any `Render` implementation or event handler:
 | `use_location(cx)` | the current `Location` (a normalized pathname) |
 | `use_pattern(cx)` | the route pattern that matched, for example `/users/:id` |
 | `use_params(cx)` | the dynamic parameters of the current match |
-| `use_navigate(cx)` | a closure that navigates to another path |
+| `use_navigate(cx)` | a `Navigator` with `push`, `replace`, `back` and `forward` |
 
 ```rust
 use gpui_router::{use_params, use_pattern};
