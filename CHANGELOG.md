@@ -6,6 +6,15 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `use_pattern(cx)` returns the route pattern that matched the current location, for example `/users/{id}` while the pathname is `/users/42`.
+- `NavLink::element_id(...)` sets the id of the clickable element, which otherwise defaults to the target path.
+
+### Removed
+
+- `PathMatch`, `RouterState::path_match` and `Location::state` were public but never populated: `path_match` was only ever set to `None`, and `Location::state` held a `matchit::Params` value the router never wrote. `RouterState::matched_pattern` and `use_pattern` replace them. This is a breaking change, so the next release is 0.6.0.
+
 ## [0.5.0] - 2026-09-24
 
 ### Added

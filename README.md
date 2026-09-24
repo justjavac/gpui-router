@@ -126,6 +126,28 @@ fn main() {
 process-wide `RouterState`, so call `gpui_router::init` once during startup and
 render one `Routes` tree per window.
 
+### Reading the location
+
+Hooks read the router state from any `Render` implementation or event handler:
+
+| Hook | Returns |
+| --- | --- |
+| `use_location(cx)` | the current `Location` (a normalized pathname) |
+| `use_pattern(cx)` | the route pattern that matched, for example `/users/{id}` |
+| `use_params(cx)` | the dynamic parameters of the current match |
+| `use_navigate(cx)` | a closure that navigates to another path |
+
+```rust
+use gpui_router::{use_params, use_pattern};
+
+fn user_page(cx: &App) -> impl IntoElement {
+  let id = use_params(cx).get("id").cloned().unwrap_or_default();
+  let pattern = use_pattern(cx).cloned();
+
+  div().child(format!("{id} matched {pattern:?}"))
+}
+```
+
 ### Nested routes
 
 Give a route children and render an `Outlet` where the matched child should

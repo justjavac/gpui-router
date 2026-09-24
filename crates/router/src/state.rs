@@ -1,6 +1,5 @@
 use gpui::{App, Global, SharedString};
 use hashbrown::HashMap;
-use matchit::Params;
 
 pub(crate) fn normalize_pathname(pathname: impl AsRef<str>) -> SharedString {
   let pathname = pathname.as_ref().trim();
@@ -40,48 +39,33 @@ fn is_normalized_pathname(pathname: &str) -> bool {
 }
 
 /// A Location represents a URL-like location in the router.
-/// It contains a pathname and an optional state object.
 #[derive(PartialEq, Eq, Ord, PartialOrd, Clone, Debug)]
 pub struct Location {
   /// A URL pathname, beginning with a `/`.
   pub pathname: SharedString,
-  /// A value of arbitrary data associated with this location.
-  pub state: Params<'static, 'static>,
 }
 
 impl Default for Location {
-  /// Creates a default Location with pathname `/` and empty state.
+  /// Creates a default Location with pathname `/`.
   fn default() -> Self {
     Self {
       pathname: normalize_pathname("/"),
-      state: Params::default(),
     }
   }
 }
 
-/// A PathMatch contains info about how a PathPattern matched on a URL-like pathname.
-#[derive(PartialEq, Eq, Ord, PartialOrd, Clone, Debug)]
-pub struct PathMatch {
-  /// The portion of the URL-like pathname that was matched.
-  pub pathname: SharedString,
-  /// The portion of the URL-like pathname that was matched before child routes.
-  pub pathname_base: SharedString,
-  /// The route pattern that was matched.
-  pub pattern: SharedString,
-  /// The names and values of dynamic parameters in the URL-like.
-  /// For example, if the route pattern is `/users/{id}`, and the URL pathname is `/users/123`,
-  /// then the `params` would be `{"id": "123"}`.
-  pub params: Params<'static, 'static>,
-}
-
-/// The global state of the router, including the current location, path match, and parameters.
-/// This state is stored globally within the GPUI application context.
+/// The global state of the router: the current location, the route pattern that
+/// matched it, and the dynamic parameters of that match.
+///
+/// This state is stored globally within the GPUI application context, so an
+/// application renders one `Routes` tree per window.
 #[derive(PartialEq, Clone)]
 pub struct RouterState {
   /// The current location in the router.
   pub location: Location,
-  /// The path match information for the current location.
-  pub path_match: Option<PathMatch>,
+  /// The route pattern that matched the current location, if any.
+  /// For example `/users/{id}` for the pathname `/users/42`.
+  pub matched_pattern: Option<SharedString>,
   /// The dynamic parameters for the current location.
   pub params: HashMap<SharedString, SharedString>,
 }
@@ -94,7 +78,7 @@ impl RouterState {
   pub fn init(cx: &mut App) {
     let state = Self {
       location: Location::default(),
-      path_match: None,
+      matched_pattern: None,
       params: HashMap::new(),
     };
     cx.set_global::<RouterState>(state);
@@ -160,7 +144,7 @@ mod tests {
   fn test_router_state_with_path_normalizes_pathname() {
     let mut state = RouterState {
       location: Location::default(),
-      path_match: None,
+      matched_pattern: None,
       params: Default::default(),
     };
 

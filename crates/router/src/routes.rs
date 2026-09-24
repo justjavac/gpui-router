@@ -66,12 +66,11 @@ impl Routes {
     let state = cx.global_mut::<RouterState>();
     state.location.pathname = pathname;
 
+    state.matched_pattern = matched.as_ref().map(|matched| matched.pattern.clone());
     state.params.clear();
     if let Some(matched) = matched {
       state.params.extend(matched.params);
     }
-
-    state.path_match = None;
   }
 }
 

@@ -15,6 +15,12 @@ pub fn use_location(cx: &App) -> &Location {
   &cx.global::<RouterState>().location
 }
 
+/// Returns the route pattern that matched the current location, if any.
+/// For example, `/users/{id}` while the pathname is `/users/42`.
+pub fn use_pattern(cx: &App) -> Option<&SharedString> {
+  cx.global::<RouterState>().matched_pattern.as_ref()
+}
+
 /// Returns the current route parameters as a map of key-value pairs.
 /// This is useful for accessing dynamic segments in the route path.
 /// For example, if you have a route defined as `/user/{id}`,
@@ -25,8 +31,8 @@ pub fn use_params(cx: &App) -> &HashMap<SharedString, SharedString> {
 
 #[cfg(all(test, any(feature = "gpui", feature = "test-support")))]
 pub mod tests {
-  use super::use_navigate;
-  use crate::RouterState;
+  use super::{use_navigate, use_pattern};
+  use crate::{Route, RouterState, Routes, normalize_pathname};
   use gpui::TestAppContext;
 
   #[gpui::test]
@@ -70,6 +76,31 @@ pub mod tests {
         navigate("".into());
       }
       assert_eq!(cx.global::<RouterState>().location.pathname, "/");
+    });
+  }
+
+  #[gpui::test]
+  async fn test_use_pattern(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+
+      let routes = Routes::new()
+        .basename("/")
+        .child(Route::new().path("users/{id}").element(|_, _| "user"));
+
+      assert_eq!(use_pattern(cx), None);
+
+      let matched = routes.match_route("/users/42").unwrap();
+      Routes::apply_match(cx, normalize_pathname("/users/42"), Some(matched));
+      assert_eq!(use_pattern(cx).map(|pattern| pattern.as_ref()), Some("/users/{id}"));
+      assert_eq!(
+        cx.global::<RouterState>().params.get("id").map(|value| value.as_ref()),
+        Some("42")
+      );
+
+      Routes::apply_match(cx, normalize_pathname("/missing"), None);
+      assert_eq!(use_pattern(cx), None);
+      assert!(cx.global::<RouterState>().params.is_empty());
     });
   }
 }
