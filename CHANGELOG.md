@@ -12,6 +12,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `Redirect`, React Router's `<Navigate>`: `Redirect::to("/login")` navigates while it renders, and `.replace(true)` replaces the current history entry. A redirect whose target is already current does nothing, so a re-render cannot navigate twice.
 - A location now carries `search` (the `?…` part), `hash` (the `#…` part) and `key`, like React Router's `location`, and navigating to `"/search?q=rust#results"` keeps those parts instead of treating them as a pathname. `use_search_params(cx)` reads the query string as key/value pairs, and `use_set_search_params(cx)` navigates with new ones (`push` or `replace`).
 - `use_matches(cx)` returns the matched routes from the root to the leaf, with each route's pattern and concrete pathname, which is what breadcrumbs are built from in React Router. `use_match(cx, "users/:id")` answers whether a pattern matches the current location.
 - `use_navigate(cx)` returns a `Navigator`: `push` is `navigate(to)`, `replace` is `navigate(to, { replace: true })`, and `back` / `forward` are `navigate(-1)` / `navigate(1)`. The router keeps a history of the last 100 locations.

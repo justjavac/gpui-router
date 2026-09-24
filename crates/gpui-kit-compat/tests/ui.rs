@@ -1,7 +1,7 @@
 use gpui_kit::component::Root;
 use gpui_kit::test::TestWindowExt;
 use gpui_kit::{Context, TestAppContext, prelude::*, px, size};
-use gpui_kit_compat::{DemoApp, GroupingApp, OutletApp, root};
+use gpui_kit_compat::{DemoApp, GroupingApp, OutletApp, RedirectApp, root};
 
 #[gpui_kit::test]
 fn router_renders_kit_components_and_navigates(cx: &mut TestAppContext) {
@@ -137,6 +137,39 @@ fn pathless_groups_render_the_matched_child(cx: &mut TestAppContext) {
       window.render_frame(cx);
       assert_eq!(window.find("page").label(), Some(expected));
     }
+  })
+  .unwrap();
+}
+
+#[gpui_kit::test]
+fn redirects_navigate_while_rendering(cx: &mut TestAppContext) {
+  cx.update(gpui_kit::init);
+  cx.update(gpui_router::init);
+
+  let handle = cx.open_window(size(px(640.), px(480.)), |window, cx: &mut Context<Root>| {
+    let view = cx.new(|_| RedirectApp);
+    root(view, window, cx)
+  });
+
+  cx.update_window(handle.into(), |_, window, cx| {
+    window.render_frame(cx);
+    window.render_frame(cx);
+    assert_eq!(window.find("page").label(), Some("redirected-about"));
+
+    let state = gpui_router::RouterState::global(cx);
+    assert_eq!(state.location.pathname, "/about");
+    assert_eq!(
+      state.history.len(),
+      1,
+      "replace(true) replaced the initial entry instead of adding one"
+    );
+
+    window.render_frame(cx);
+    assert_eq!(
+      gpui_router::RouterState::global(cx).history.len(),
+      1,
+      "a redirect whose target is current does not navigate again"
+    );
   })
   .unwrap();
 }
