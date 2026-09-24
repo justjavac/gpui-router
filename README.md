@@ -16,6 +16,27 @@ A router for [GPUI](https://www.gpui.rs/) App, inspired by React-Router.
 - Wildcard Routes
 - Navigation Links
 
+## Coming from React Router?
+
+The API follows React Router, so most of the knowledge transfers directly:
+
+| React Router | `gpui-router` |
+| --- | --- |
+| `<Routes>` / `createBrowserRouter` | `Routes::new().children(vec![...])` |
+| `<Route path element index>` | `Route::new().path("users/:id").element(\|_, _\| ...)`, `.index()` |
+| `<Outlet />` | `Outlet::new()` |
+| `path="users/:id"` | the same, and `{id}` also works |
+| `path="*"` | the same, and it matches `/` like React Router |
+| `<NavLink to>` | `NavLink::new().to(...)` |
+| `useParams()`, `useLocation()`, `useNavigate()` | `use_params(cx)`, `use_location(cx)`, `use_navigate(cx)` |
+| `<Link to>`, `navigate(-1)`, `useSearchParams()`, `<Navigate>` | planned, see [the alignment plan](./docs/react-router-alignment.md) |
+| `loader`, `action`, `errorElement` | not planned yet; the plan covers a design pass first |
+
+Two deliberate differences: `Route::layout(...)` plus `#[derive(IntoLayout)]` has
+no React Router equivalent (it is an optional, explicit alternative to an
+element with an `Outlet`), and GPUI has no context lookup, so `useOutletContext`
+becomes passing an entity instead.
+
 ## GPUI versions
 
 `gpui-router` builds against either GPUI release line, selected by a feature:
@@ -189,7 +210,8 @@ way: give a child route its own `.element(...)` plus children. Only the first
 outlet of an element receives the child, and an element that never creates one
 renders no child content.
 
-When the shared chrome needs its own type and state, implement `Layout` instead
+This is the React Router shape, and the recommended one. When the shared chrome
+needs its own type and state, an optional alternative is to implement `Layout`
 and pass it with `Route::layout(...)`; `#[derive(IntoLayout)]` wires the outlet
 of a struct that has an `outlet` field. See
 [examples/nested_router.rs](./crates/router/examples/nested_router.rs) for a
