@@ -11,7 +11,7 @@ use crate::Route;
 use crate::normalize_pathname;
 use gpui::SharedString;
 use hashbrown::HashMap;
-use matchit::Router as MatchitRouter;
+use matchit::{InsertError, Router as MatchitRouter};
 use std::{
   cell::RefCell,
   collections::hash_map::DefaultHasher,
@@ -169,7 +169,12 @@ fn cached_matcher<Node: RouteNode>(routes: &[Node], basename: &str) -> Rc<Matche
 fn compile<Node: RouteNode>(routes: &[Node], basename: &str) -> Matcher {
   let mut matcher = MatchitRouter::new();
   for (index, node) in routes.iter().enumerate() {
-    matcher.merge(route_map(node.route(), basename, index)).unwrap();
+    merge_routes(
+      &mut matcher,
+      route_map(node.route(), basename, index),
+      node.route(),
+      basename,
+    );
   }
 
   // Splat routes also match their parent path, where the splat is empty. Those
@@ -190,7 +195,7 @@ fn route_map(route: &Route, basename: &str, index: usize) -> RouteMap {
 
   // Descendants belong to the route being registered, so they keep its index.
   for child in route.routes.iter() {
-    map.merge(route_map(child, path.as_ref(), index)).unwrap();
+    merge_routes(&mut map, route_map(child, path.as_ref(), index), child, path.as_ref());
   }
 
   // A route that renders an element also matches its own path, so the element
@@ -198,7 +203,7 @@ fn route_map(route: &Route, basename: &str, index: usize) -> RouteMap {
   // registers the same path wins, which is what an index route does.
   if route.element.is_some() {
     let pattern = CompiledPattern::new(path.as_ref());
-    let _ = map.insert(pattern.matcher.as_str(), pattern.route_target(index, path, false));
+    insert_pattern(&mut map, &pattern, index, path, false);
   }
 
   map
@@ -216,12 +221,45 @@ fn splat_parent_map(route: &Route, basename: &str, index: usize) -> RouteMap {
 
   if route.element.is_some() {
     let pattern = CompiledPattern::new(path.as_ref());
-    if let Some(parent) = pattern.parent() {
-      let _ = map.insert(parent.as_str(), pattern.route_target(index, path, true));
-    }
+    insert_pattern(&mut map, &pattern, index, path, true);
   }
 
   map
+}
+
+/// Registers a route's own pattern. A conflict means an index or static child
+/// owns that path, which is expected; anything else is a broken pattern and
+/// panics with the path the application wrote.
+fn insert_pattern(map: &mut RouteMap, pattern: &CompiledPattern, index: usize, path: SharedString, empty_splat: bool) {
+  let matcher = if empty_splat {
+    match pattern.parent() {
+      Some(parent) => parent,
+      None => return,
+    }
+  } else {
+    pattern.matcher.clone()
+  };
+
+  if let Err(error) = map.insert(matcher.as_str(), pattern.route_target(index, path.clone(), empty_splat))
+    && !matches!(error, InsertError::Conflict { .. })
+  {
+    panic!("invalid route path {path:?}: {error}");
+  }
+}
+
+/// Merges a subtree, naming the route when two routes register the same path.
+fn merge_routes(map: &mut RouteMap, other: RouteMap, route: &Route, basename: &str) {
+  if let Err(error) = map.merge(other) {
+    let mut reasons: Vec<String> = error.into_errors().into_iter().map(|error| error.to_string()).collect();
+    reasons.sort();
+    reasons.dedup();
+
+    panic!(
+      "conflicting route paths under {:?}: {}",
+      route.full_path(basename),
+      reasons.join("; ")
+    );
+  }
 }
 
 /// Translates a React Router path pattern into the syntax the matcher uses:
@@ -451,5 +489,25 @@ mod tests {
     assert_eq!(matched.pattern, "/files/*");
     assert_eq!(matched.params.get("splat").map(|value| value.as_ref()), Some("a/b.txt"));
     assert_eq!(matched.params.get("*").map(|value| value.as_ref()), Some("a/b.txt"));
+  }
+
+  #[test]
+  #[should_panic(expected = "conflicting route paths")]
+  fn test_duplicate_route_paths_panic_with_context() {
+    let routes = vec![
+      Route::new().path("about").element(|_, _| "about"),
+      Route::new().path("about").element(|_, _| "about again"),
+    ];
+
+    let _ = match_path(&routes, "/", "/about");
+  }
+
+  #[test]
+  #[should_panic(expected = "invalid route path")]
+  fn test_invalid_route_pattern_panics_with_context() {
+    // `:` on its own compiles to `{}`, which has no parameter name.
+    let routes = vec![Route::new().path(":").element(|_, _| "broken")];
+
+    let _ = match_path(&routes, "/", "/");
   }
 }

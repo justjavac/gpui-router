@@ -18,6 +18,11 @@ pub(crate) fn normalize_pathname(pathname: impl AsRef<str>) -> SharedString {
   normalized.into()
 }
 
+/// The message every entry point uses when the application forgot to call
+/// [`init`](crate::init).
+const NOT_INITIALIZED: &str =
+  "the router is not initialized: call `gpui_router::init(cx)` once while starting the application";
+
 /// Normalizes a shared pathname without allocating when it is already in the
 /// form the router stores.
 pub(crate) fn normalize_shared_pathname(pathname: &SharedString) -> SharedString {
@@ -97,6 +102,21 @@ impl RouterState {
 
   /// Retrieves a mutable reference to the global RouterState from the GPUI application context.
   pub fn global_mut(cx: &mut App) -> &mut Self {
+    cx.global_mut::<Self>()
+  }
+
+  /// Returns the router state, panicking with the fix when an application never
+  /// called [`init`](crate::init).
+  pub(crate) fn require(cx: &App) -> &Self {
+    cx.try_global::<Self>().unwrap_or_else(|| panic!("{NOT_INITIALIZED}"))
+  }
+
+  /// Mutable counterpart of [`RouterState::require`].
+  pub(crate) fn require_mut(cx: &mut App) -> &mut Self {
+    if !cx.has_global::<Self>() {
+      panic!("{NOT_INITIALIZED}");
+    }
+
     cx.global_mut::<Self>()
   }
 }

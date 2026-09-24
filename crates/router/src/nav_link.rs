@@ -123,20 +123,11 @@ impl NavLink {
   /// returns the element an application renders.
   fn link_element(mut self, cx: &App) -> Stateful<Div> {
     let to = normalize_shared_pathname(&self.to);
-    let is_active = if cx.has_global::<RouterState>() {
-      is_active(
-        cx.global::<RouterState>().location.pathname.as_ref(),
-        to.as_ref(),
-        self.end,
-      )
-    } else {
-      debug_assert!(
-        false,
-        "NavLink rendered without initialized RouterState; \
-         ensure the router is initialized (e.g., via crate::init()) before rendering NavLink."
-      );
-      false
-    };
+    let is_active = is_active(
+      RouterState::require(cx).location.pathname.as_ref(),
+      to.as_ref(),
+      self.end,
+    );
 
     if is_active && let Some(active_style) = self.active_style.as_ref() {
       self.base.style().refine(active_style);

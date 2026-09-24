@@ -60,6 +60,14 @@ pub mod tests {
   }
 
   #[gpui::test]
+  #[should_panic(expected = "call `gpui_router::init(cx)`")]
+  async fn test_missing_init_panics_in_every_build(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      let _ = RouterState::require(cx);
+    });
+  }
+
+  #[gpui::test]
   async fn test_lazy_element_evaluation(cx: &mut TestAppContext) {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicU32, Ordering};
