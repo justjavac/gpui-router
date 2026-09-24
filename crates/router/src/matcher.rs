@@ -6,9 +6,7 @@
 //! fingerprint of the route tree: rebuilding a tree with the same paths reuses
 //! the compiled matcher.
 
-use crate::Route;
-#[cfg(test)]
-use crate::normalize_pathname;
+use crate::{Route, normalize_pathname};
 use gpui::SharedString;
 use hashbrown::HashMap;
 use matchit::{InsertError, Router as MatchitRouter};
@@ -22,6 +20,9 @@ use std::{
 /// How many compiled matchers to keep around. Route trees are shallow, so this
 /// covers every level of a few different trees.
 const MAX_CACHED_MATCHERS: usize = 8;
+
+/// How many single patterns to keep for `use_match`.
+const MAX_CACHED_PATTERNS: usize = 16;
 
 /// A route as it appears in a route list: `Routes` stores routes by value,
 /// while nested routes are boxed.
@@ -77,6 +78,8 @@ struct CachedMatcher {
 
 thread_local! {
   static MATCHER_CACHE: RefCell<Vec<CachedMatcher>> = const { RefCell::new(Vec::new()) };
+  /// Compiled single patterns, used by `use_match` while rendering.
+  static PATTERN_CACHE: RefCell<Vec<(String, Rc<MatchitRouter<()>>)>> = const { RefCell::new(Vec::new()) };
 }
 
 #[cfg(test)]
@@ -131,6 +134,42 @@ pub(crate) fn match_normalized<Node: RouteNode>(
 #[cfg(test)]
 pub(crate) fn match_path<Node: RouteNode>(routes: &[Node], basename: &str, pathname: &str) -> Option<MatchedRoute> {
   match_normalized(routes, basename, normalize_pathname(pathname).as_ref())
+}
+
+/// Whether a single pattern matches `pathname`, which is what React Router's
+/// `useMatch` answers. The pattern is normalized like a route path, and the
+/// compiled matcher is cached because hooks run on every render.
+pub(crate) fn matches_pattern(pattern: &str, pathname: &str) -> bool {
+  let compiled = CompiledPattern::new(normalize_pathname(pattern).as_ref());
+  let pattern = compiled.matcher.clone();
+
+  let cached = PATTERN_CACHE.with(|cache| {
+    cache
+      .borrow()
+      .iter()
+      .find(|(cached, _)| cached == &pattern)
+      .map(|(_, matcher)| Rc::clone(matcher))
+  });
+
+  let matcher = cached.unwrap_or_else(|| {
+    let mut matcher = MatchitRouter::new();
+    if let Err(error) = matcher.insert(pattern.as_str(), ()) {
+      panic!("invalid route path {pattern:?}: {error}");
+    }
+    let matcher = Rc::new(matcher);
+
+    PATTERN_CACHE.with(|cache| {
+      let mut cache = cache.borrow_mut();
+      cache.insert(0, (pattern.clone(), Rc::clone(&matcher)));
+      cache.truncate(MAX_CACHED_PATTERNS);
+    });
+
+    matcher
+  });
+
+  // A splat also matches its parent path, exactly like the router's own
+  // matching and React Router's `*`.
+  matcher.at(pathname).is_ok() || compiled.parent().is_some_and(|parent| parent.as_str() == pathname)
 }
 
 fn cached_matcher<Node: RouteNode>(routes: &[Node], basename: &str) -> Rc<Matcher> {
@@ -356,7 +395,7 @@ fn hash_routes<Node: RouteNode>(routes: &[Node], hasher: &mut impl Hasher) {
 
 #[cfg(test)]
 mod tests {
-  use super::{BUILD_COUNT, CompiledPattern, compile, match_path};
+  use super::{BUILD_COUNT, CompiledPattern, compile, match_path, matches_pattern};
   use crate::Route;
   use gpui::SharedString;
   use std::time::Instant;
@@ -509,5 +548,19 @@ mod tests {
     let routes = vec![Route::new().path(":").element(|_, _| "broken")];
 
     let _ = match_path(&routes, "/", "/");
+  }
+
+  #[test]
+  fn test_matches_pattern_handles_both_syntaxes() {
+    assert!(matches_pattern("users/:id", "/users/42"));
+    assert!(matches_pattern("/users/{id}", "/users/42"));
+    assert!(!matches_pattern("users/:id", "/users"));
+
+    // `*` matches everything, including its parent path.
+    assert!(matches_pattern("*", "/anything/at/all"));
+    assert!(matches_pattern("*", "/"));
+    assert!(matches_pattern("files/*", "/files/a/b.txt"));
+    assert!(matches_pattern("files/*", "/files"));
+    assert!(!matches_pattern("files/*", "/other"));
   }
 }

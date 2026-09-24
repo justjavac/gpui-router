@@ -165,6 +165,7 @@ impl Route {
 impl RenderOnce for Route {
   fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
     let basename = self.full_path(self.basename.as_ref());
+    RouterState::require_mut(cx).record_match(&basename);
     let mut routes = std::mem::take(&mut self.routes);
 
     if let Some(element_fn) = self.element {
