@@ -118,7 +118,15 @@ fn layout(cx: &App) -> impl IntoElement + use<> {
             .test_support()
             .child(Link::new().to("/about/team").child(div().child("Team link"))),
         )
-        .child(div().id("breadcrumbs").test_support().aria_label(breadcrumbs(cx))),
+        .child(div().id("breadcrumbs").test_support().aria_label(breadcrumbs(cx)))
+        .child(
+          div().id("link-query").test_support().child(
+            Link::new()
+              .to("/settings/profile?tab=billing")
+              .child(div().child("Billing")),
+          ),
+        )
+        .child(div().id("query").test_support().aria_label(query_summary(cx))),
     )
     .child(Outlet::new())
 }
@@ -132,6 +140,15 @@ fn breadcrumbs(cx: &App) -> SharedString {
       .collect::<Vec<_>>()
       .join(" > "),
   )
+}
+
+/// The current query string plus one parsed value, which is what
+/// `use_search_params` reads.
+fn query_summary(cx: &App) -> SharedString {
+  let search = gpui_router::use_location(cx).search.clone();
+  let tab = gpui_router::use_search_params(cx).get("tab").unwrap_or("");
+
+  SharedString::from(format!("{search}|{tab}"))
 }
 
 fn about_layout() -> impl IntoElement {

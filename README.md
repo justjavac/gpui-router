@@ -33,7 +33,8 @@ The API follows React Router, so most of the knowledge transfers directly:
 | `useMatches()`, `useMatch(pattern)` | `use_matches(cx)`, `use_match(cx, "users/:id")` |
 | `useNavigate()` | `use_navigate(cx)`, a `Navigator` with `push` / `replace` / `back` / `forward` |
 | `navigate(-1)`, `navigate(1)` | `nav.back()`, `nav.forward()` |
-| `useSearchParams()`, `<Navigate>` | planned, see [the alignment plan](./docs/react-router-alignment.md) |
+| `useSearchParams()` | `use_search_params(cx)` to read, `use_set_search_params(cx)` to write |
+| `<Navigate>` | planned, see [the alignment plan](./docs/react-router-alignment.md) |
 | `loader`, `action`, `errorElement` | not planned yet; the plan covers a design pass first |
 
 Two deliberate differences: `Route::layout(...)` plus `#[derive(IntoLayout)]` has
@@ -163,6 +164,8 @@ Hooks read the router state from any `Render` implementation or event handler:
 | `use_params(cx)` | the dynamic parameters of the current match |
 | `use_matches(cx)` | the matched routes from the root to the leaf, for breadcrumbs |
 | `use_match(cx, pattern)` | whether a pattern matches the current location |
+| `use_search_params(cx)` | the query string, parsed into key/value pairs |
+| `use_set_search_params(cx)` | a setter that navigates with new query parameters |
 | `use_navigate(cx)` | a `Navigator` with `push`, `replace`, `back` and `forward` |
 
 ```rust

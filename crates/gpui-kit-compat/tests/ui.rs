@@ -100,6 +100,12 @@ fn element_routes_render_their_children_through_the_outlet(cx: &mut TestAppConte
     }
     window.render_frame(cx);
     assert_eq!(window.find("page").label(), Some("settings-profile"));
+
+    // A query string travels with the location without affecting matching.
+    window.click("link-query", cx);
+    window.render_frame(cx);
+    assert_eq!(window.find("page").label(), Some("settings-profile"));
+    assert_eq!(window.find("query").label(), Some("?tab=billing|billing"));
   })
   .unwrap();
 }

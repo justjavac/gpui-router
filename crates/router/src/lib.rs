@@ -26,6 +26,7 @@ mod router;
 #[cfg(all(test, any(feature = "gpui", feature = "test-support")))]
 mod router_tests;
 mod routes;
+mod search;
 mod state;
 
 pub use gpui_router_macros::*;
@@ -36,6 +37,7 @@ pub use outlet::*;
 pub use route::*;
 pub use router::*;
 pub use routes::*;
+pub use search::*;
 pub use state::*;
 pub(crate) use state::{normalize_pathname, normalize_shared_pathname};
 

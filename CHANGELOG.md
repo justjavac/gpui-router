@@ -12,6 +12,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- A location now carries `search` (the `?…` part), `hash` (the `#…` part) and `key`, like React Router's `location`, and navigating to `"/search?q=rust#results"` keeps those parts instead of treating them as a pathname. `use_search_params(cx)` reads the query string as key/value pairs, and `use_set_search_params(cx)` navigates with new ones (`push` or `replace`).
 - `use_matches(cx)` returns the matched routes from the root to the leaf, with each route's pattern and concrete pathname, which is what breadcrumbs are built from in React Router. `use_match(cx, "users/:id")` answers whether a pattern matches the current location.
 - `use_navigate(cx)` returns a `Navigator`: `push` is `navigate(to)`, `replace` is `navigate(to, { replace: true })`, and `back` / `forward` are `navigate(-1)` / `navigate(1)`. The router keeps a history of the last 100 locations.
 - `Link`, React Router's plain navigation element, next to `NavLink`. `NavLink` gained `case_sensitive(false)`, matching React Router's `caseSensitive` default: the active check ignores case unless an application asks for exact matching.
@@ -31,6 +32,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- `Location` gained the `search`, `hash` and `key` fields, so a literal `Location { pathname }` no longer compiles; `Location::default()` and the navigation APIs are unaffected. `RouterState` gained `search_params` next to the raw `location.search`.
 - `use_navigate(cx)` returns a `Navigator` instead of a `FnMut(SharedString)` closure: `navigate("/about".into())` becomes `navigate.push("/about")`. `RouterState` gained the `history` and `history_index` fields; `with_path` replaces the current history entry.
 - A missing `init(cx)` panics in every build, not only in debug builds, and the message names the call to add. Duplicate route paths and invalid patterns panic with the route path instead of a bare matcher error.
 - A splat route also matches its parent path, like React Router's `*`: `path("*")` covers `/`, and `files/*` covers `/files` with an empty `params["*"]`. An index or static route still wins that path.
