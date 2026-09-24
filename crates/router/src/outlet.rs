@@ -53,6 +53,10 @@ pub fn outlet() -> impl IntoElement {
 /// Routes that use [`Route::layout`](crate::Route::layout) fill the outlet
 /// through [`Layout::outlet`](crate::Layout::outlet) instead. When no child
 /// matches, an outlet renders as an empty element.
+///
+/// Only the first outlet created by an element receives the matched child, and
+/// a route whose element never creates one keeps matching its children while
+/// rendering no child content.
 #[derive(IntoElement)]
 pub struct Outlet {
   pub(crate) element: AnyElement,

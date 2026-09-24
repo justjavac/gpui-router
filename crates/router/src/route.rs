@@ -74,9 +74,9 @@ impl Route {
   ///
   /// The matched child of a route with children renders into the first
   /// [`Outlet`](crate::Outlet) created by this element, so an outlet has to be
-  /// built inside the element closure. Use [`Route::layout`] instead when the
-  /// surrounding chrome needs its own type. Panics in debug builds if a layout
-  /// is already set.
+  /// built inside the element closure; children render only through it. Use
+  /// [`Route::layout`] instead when the surrounding chrome needs its own type.
+  /// Panics in debug builds if a layout is already set.
   ///
   /// # Examples
   /// ```

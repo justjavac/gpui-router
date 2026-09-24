@@ -79,6 +79,10 @@ impl Render for OutletApp {
           Route::new().index().element(|_, _| about()),
           Route::new().path("team").element(|_, _| team()),
         ]),
+        Route::new()
+          .path("settings")
+          .layout(SettingsShell::new())
+          .child(Route::new().path("profile").element(|_, _| settings_profile())),
         Route::new().path("{*not_match}").element(|_, _| not_match()),
       ])),
     )
@@ -101,6 +105,12 @@ fn layout() -> impl IntoElement {
             .id("nav-team")
             .test_support()
             .child(NavLink::new().to("/about/team").child(div().child("Team"))),
+        )
+        .child(
+          div()
+            .id("nav-settings")
+            .test_support()
+            .child(NavLink::new().to("/settings/profile").child(div().child("Settings"))),
         ),
     )
     .child(Outlet::new())
@@ -108,6 +118,24 @@ fn layout() -> impl IntoElement {
 
 fn about_layout() -> impl IntoElement {
   div().id("about-shell").child(Outlet::new())
+}
+
+/// Layout-style chrome nested inside an element route.
+#[derive(Default, IntoElement, IntoLayout)]
+pub struct SettingsShell {
+  outlet: Outlet,
+}
+
+impl SettingsShell {
+  pub fn new() -> Self {
+    Self { outlet: Outlet::new() }
+  }
+}
+
+impl RenderOnce for SettingsShell {
+  fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
+    div().child(self.outlet)
+  }
 }
 
 fn home() -> impl IntoElement {
@@ -133,6 +161,13 @@ fn team() -> impl IntoElement {
     .test_support()
     .aria_label(SharedString::from("team"))
     .child(NavLink::new().to("/about").child(div().child("Back to about")))
+}
+
+fn settings_profile() -> impl IntoElement {
+  div()
+    .id("page")
+    .test_support()
+    .aria_label(SharedString::from("settings-profile"))
 }
 
 fn not_match() -> impl IntoElement {

@@ -151,7 +151,9 @@ fn layout() -> impl IntoElement {
 
 An outlet picks up the matched child while the route's element is built, so it
 has to be created inside that element closure. Nesting deeper works the same
-way: give a child route its own `.element(...)` plus children.
+way: give a child route its own `.element(...)` plus children. Only the first
+outlet of an element receives the child, and an element that never creates one
+renders no child content.
 
 When the shared chrome needs its own type and state, implement `Layout` instead
 and pass it with `Route::layout(...)`; `#[derive(IntoLayout)]` wires the outlet
