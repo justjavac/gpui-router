@@ -28,6 +28,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- A splat route also matches its parent path, like React Router's `*`: `path("*")` covers `/`, and `files/*` covers `/files` with an empty `params["*"]`. An index or static route still wins that path.
 - Element routes also match their own path, so a parent renders with an empty outlet when no child matches; an index route still owns the parent path.
 
 ### Removed

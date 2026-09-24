@@ -342,7 +342,7 @@ pub mod tests {
   }
 
   #[gpui::test]
-  async fn test_catch_all_route_does_not_match_root_without_segments(cx: &mut TestAppContext) {
+  async fn test_catch_all_route_matches_root_with_an_empty_splat(cx: &mut TestAppContext) {
     cx.update(|cx| {
       crate::init(cx);
 
@@ -350,7 +350,28 @@ pub mod tests {
         .basename("/")
         .child(Route::new().path("{*rest}").element(|_, _| "rest"));
 
-      assert!(routes.match_route("/").is_none());
+      let matched = routes.match_route("/").expect("a splat matches its parent path");
+      assert_eq!(matched.pattern, "/{*rest}");
+      assert_eq!(matched.params.get("rest").map(|value| value.as_ref()), Some(""));
+    });
+  }
+
+  #[gpui::test]
+  async fn test_index_route_wins_over_a_splat_parent_path(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+
+      let with_index_first = Routes::new()
+        .basename("/")
+        .child(Route::new().index().element(|_, _| "home"))
+        .child(Route::new().path("*").element(|_, _| "fallback"));
+      assert_eq!(with_index_first.match_route("/").unwrap().pattern, "/");
+
+      let with_splat_first = Routes::new()
+        .basename("/")
+        .child(Route::new().path("*").element(|_, _| "fallback"))
+        .child(Route::new().index().element(|_, _| "home"));
+      assert_eq!(with_splat_first.match_route("/").unwrap().pattern, "/");
     });
   }
 
