@@ -106,6 +106,14 @@ fn element_routes_render_their_children_through_the_outlet(cx: &mut TestAppConte
     window.render_frame(cx);
     assert_eq!(window.find("page").label(), Some("settings-profile"));
     assert_eq!(window.find("query").label(), Some("?tab=billing|billing"));
+
+    // A relative target resolves against the route that renders the link:
+    // this link lives in `/about`, so "team" means `/about/team`.
+    window.click("nav-about", cx);
+    window.render_frame(cx);
+    window.click("link-relative-team", cx);
+    window.render_frame(cx);
+    assert_eq!(window.find("page").label(), Some("team"));
   })
   .unwrap();
 }

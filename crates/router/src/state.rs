@@ -3,6 +3,103 @@ use gpui::{App, Global, SharedString};
 use hashbrown::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+/// How a relative navigation target is resolved, mirroring React Router's
+/// `relative` option.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Relative {
+  /// Resolve against the route that renders the link, which is React Router's
+  /// default `relative="route"`. A leading `..` climbs one route.
+  #[default]
+  Route,
+  /// Resolve against the current pathname, like `relative="path"`. A leading
+  /// `..` climbs one path segment.
+  Path,
+}
+
+thread_local! {
+  /// The route whose element is being built, so that relative targets inside
+  /// that element resolve against it.
+  static RENDER_ROUTE: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
+}
+
+/// Runs `build` with `route` as the route being rendered.
+pub(crate) fn with_render_route<R>(route: Option<usize>, build: impl FnOnce() -> R) -> R {
+  struct Restore(Option<usize>);
+
+  impl Drop for Restore {
+    fn drop(&mut self) {
+      let previous = self.0.take();
+      RENDER_ROUTE.with(|slot| slot.set(previous));
+    }
+  }
+
+  let previous = RENDER_ROUTE.with(|slot| slot.replace(route));
+  let _restore = Restore(previous);
+  build()
+}
+
+/// Resolves a navigation target the way React Router resolves `to`: absolute
+/// targets pass through, relative ones resolve against the route that is
+/// rendering, or against the deepest match when nothing is rendering, which is
+/// what an event handler sees.
+pub(crate) fn resolve_target(state: &RouterState, to: &str, relative: Relative) -> SharedString {
+  let (path, search, hash) = split_target(to);
+
+  if path.starts_with('/') {
+    return SharedString::from(format!("{}{search}{hash}", normalize_pathname(path)));
+  }
+
+  let (path, from) = match relative {
+    Relative::Path => (path.to_string(), state.location.pathname.to_string()),
+    Relative::Route => {
+      let mut route = RENDER_ROUTE.with(|slot| slot.get()).or(state.current_route);
+      let mut segments: Vec<&str> = path.split('/').collect();
+
+      while segments.first() == Some(&"..") {
+        segments.remove(0);
+        route = match route {
+          Some(index) if index > 0 => Some(index - 1),
+          _ => None,
+        };
+      }
+
+      let from = route
+        .and_then(|index| state.matches.get(index))
+        .map(|matched| matched.pathname.to_string())
+        .unwrap_or_else(|| "/".to_string());
+
+      (segments.join("/"), from)
+    }
+  };
+
+  let pathname = normalize_pathname(resolve_from(&path, &from));
+  SharedString::from(format!("{pathname}{search}{hash}"))
+}
+
+/// Appends a relative path to `from`, popping one segment per `..`, following
+/// React Router's `resolvePath`.
+fn resolve_from(path: &str, from: &str) -> String {
+  let mut segments: Vec<&str> = from.trim_end_matches('/').split('/').collect();
+
+  for segment in path.split('/') {
+    match segment {
+      "" | "." => {}
+      ".." => {
+        if segments.len() > 1 {
+          segments.pop();
+        }
+      }
+      segment => segments.push(segment),
+    }
+  }
+
+  if segments.len() > 1 {
+    segments.join("/")
+  } else {
+    "/".to_string()
+  }
+}
+
 pub(crate) fn normalize_pathname(pathname: impl AsRef<str>) -> SharedString {
   let pathname = pathname.as_ref().trim();
   let mut normalized = if pathname.is_empty() {
@@ -171,6 +268,9 @@ pub struct RouterState {
   /// The routes that matched the current location, from the root to the leaf.
   /// Filled while the router renders, like React Router's `useMatches`.
   pub matches: Vec<Match>,
+  /// Index into [`RouterState::matches`] of the deepest route that rendered,
+  /// which relative navigation from an event handler resolves against.
+  pub current_route: Option<usize>,
   /// Locations visited before and after the current one, oldest first.
   pub history: Vec<Location>,
   /// Index of [`RouterState::location`] inside
@@ -191,6 +291,7 @@ impl RouterState {
       params: HashMap::new(),
       search_params: SearchParams::default(),
       matches: Vec::new(),
+      current_route: None,
       history: vec![location],
       history_index: 0,
     };
@@ -223,12 +324,16 @@ impl RouterState {
 
   /// Records a route of the chain that is being rendered, which is what
   /// [`use_matches`](crate::use_matches) returns.
-  pub(crate) fn record_match(&mut self, pattern: &SharedString) {
+  pub(crate) fn record_match(&mut self, pattern: &SharedString) -> usize {
     let pathname = concrete_pathname(pattern.as_ref(), &self.params);
     self.matches.push(Match {
       pattern: pattern.clone(),
       pathname,
     });
+
+    let index = self.matches.len() - 1;
+    self.current_route = Some(index);
+    index
   }
 
   /// Navigates to a location, replacing the current history entry.
@@ -304,8 +409,24 @@ impl RouterState {
 
 #[cfg(test)]
 mod tests {
-  use super::{Location, MAX_HISTORY, RouterState, normalize_pathname};
+  use super::{Location, MAX_HISTORY, Relative, RouterState, normalize_pathname, resolve_target, with_render_route};
   use gpui::SharedString;
+
+  impl RouterState {
+    /// A state with the default location and empty everything else.
+    fn default_for_test() -> Self {
+      Self {
+        location: Location::default(),
+        matched_pattern: None,
+        params: Default::default(),
+        search_params: Default::default(),
+        matches: Vec::new(),
+        current_route: None,
+        history: vec![Location::default()],
+        history_index: 0,
+      }
+    }
+  }
 
   #[test]
   fn test_normalize_pathname_handles_empty_relative_and_trailing_slashes() {
@@ -350,6 +471,7 @@ mod tests {
       params: Default::default(),
       search_params: Default::default(),
       matches: Vec::new(),
+      current_route: None,
       history: vec![Location::default()],
       history_index: 0,
     };
@@ -378,6 +500,7 @@ mod tests {
       params: Default::default(),
       search_params: Default::default(),
       matches: Vec::new(),
+      current_route: None,
       history: vec![Location::default()],
       history_index: 0,
     };
@@ -427,6 +550,7 @@ mod tests {
       params: Default::default(),
       search_params: Default::default(),
       matches: Vec::new(),
+      current_route: None,
       history: vec![Location::default()],
       history_index: 0,
     };
@@ -443,5 +567,66 @@ mod tests {
     state.go_back();
     assert_eq!(state.search_params.get("q"), Some("rust"));
     assert_eq!(state.location.key, first_key);
+  }
+
+  #[test]
+  fn test_resolve_target_handles_absolute_targets() {
+    let state = RouterState::default_for_test();
+
+    assert_eq!(resolve_target(&state, "/about", Relative::Route), "/about");
+    assert_eq!(
+      resolve_target(&state, "/search?q=1#top", Relative::Path),
+      "/search?q=1#top"
+    );
+    assert_eq!(resolve_target(&state, "about/", Relative::Route), "/about");
+  }
+
+  #[test]
+  fn test_resolve_target_route_relative() {
+    let mut state = RouterState::default_for_test();
+    {
+      let base = &mut state;
+      base.record_match(&SharedString::from("/"));
+      base.record_match(&SharedString::from("/settings"));
+    }
+    state.location.pathname = SharedString::from("/settings/profile");
+
+    // The deepest match is the base when nothing is rendering.
+    assert_eq!(resolve_target(&state, "profile", Relative::Route), "/settings/profile");
+    assert_eq!(resolve_target(&state, "", Relative::Route), "/settings");
+
+    // `..` climbs a route, not a path segment.
+    assert_eq!(
+      resolve_target(&state, "../permissions", Relative::Route),
+      "/permissions"
+    );
+    assert_eq!(resolve_target(&state, "..", Relative::Route), "/");
+    assert_eq!(
+      resolve_target(&state, "../../above", Relative::Route),
+      "/above",
+      "climbing above the root stays at the root"
+    );
+
+    // While rendering, the route being rendered wins.
+    assert_eq!(
+      with_render_route(Some(0), || resolve_target(&state, "profile", Relative::Route)),
+      "/profile"
+    );
+  }
+
+  #[test]
+  fn test_resolve_target_path_relative() {
+    let mut state = RouterState::default_for_test();
+    state.location.pathname = SharedString::from("/settings/profile");
+
+    assert_eq!(
+      resolve_target(&state, "../billing", Relative::Path),
+      "/settings/billing"
+    );
+    assert_eq!(
+      resolve_target(&state, "billing", Relative::Path),
+      "/settings/profile/billing"
+    );
+    assert_eq!(resolve_target(&state, "../../", Relative::Path), "/");
   }
 }

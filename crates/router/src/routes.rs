@@ -74,6 +74,7 @@ impl Routes {
 
     // The matched chain is recorded again while the router renders.
     state.matches.clear();
+    state.current_route = None;
   }
 }
 

@@ -1,5 +1,6 @@
+use crate::state::resolve_target;
 use crate::state::split_target;
-use crate::{RouterState, normalize_pathname, use_navigate};
+use crate::{Relative, RouterState, normalize_pathname, use_navigate};
 use gpui::*;
 use smallvec::SmallVec;
 
@@ -22,6 +23,7 @@ pub struct Link {
   children: SmallVec<[AnyElement; 1]>,
   to: SharedString,
   element_id: Option<ElementId>,
+  relative: Relative,
 }
 
 impl Default for Link {
@@ -31,6 +33,7 @@ impl Default for Link {
       children: Default::default(),
       to: Default::default(),
       element_id: None,
+      relative: Relative::Route,
     }
   }
 }
@@ -74,6 +77,13 @@ impl Link {
     self
   }
 
+  /// Resolves `to` against the current pathname instead of the current route,
+  /// like React Router's `relative="path"`. The default is [`Relative::Route`].
+  pub fn relative(mut self, relative: Relative) -> Self {
+    self.relative = relative;
+    self
+  }
+
   /// Applies the click handler and the element id, and returns the element an
   /// application renders.
   fn link_element(mut self, cx: &App) -> Stateful<Div> {
@@ -81,9 +91,9 @@ impl Link {
     // when the user clicks it; fail while rendering instead.
     let _ = RouterState::require(cx);
 
-    // The target keeps its query string and fragment: the navigator parses
-    // them, and routes only match the pathname.
-    let to = self.to.clone();
+    // Resolve while rendering, because that is when the route the link lives in
+    // is known; the click handler only navigates to the resolved target.
+    let to = resolve_target(RouterState::require(cx), self.to.as_ref(), self.relative);
     let element_id = self.element_id.take().unwrap_or_else(|| ElementId::from(to.clone()));
 
     self
@@ -156,6 +166,13 @@ impl NavLink {
     self
   }
 
+  /// Resolves `to` against the current pathname instead of the current route,
+  /// like React Router's `relative="path"` on `NavLink`.
+  pub fn relative(mut self, relative: Relative) -> Self {
+    self.link = self.link.relative(relative);
+    self
+  }
+
   /// Sets the style for the active state of the navigation link.
   pub fn active(mut self, f: impl FnOnce(StyleRefinement) -> StyleRefinement) -> Self {
     debug_assert!(self.active_style.is_none(), "active style already set");
@@ -183,7 +200,8 @@ impl NavLink {
 
   /// Applies the active style, then renders the underlying link.
   fn link_element(mut self, cx: &App) -> Stateful<Div> {
-    let (pathname, _, _) = split_target(self.link.to.as_ref());
+    let target = resolve_target(RouterState::require(cx), self.link.to.as_ref(), self.link.relative);
+    let (pathname, _, _) = split_target(target.as_ref());
     let to = normalize_pathname(pathname);
     let is_active = is_active(
       RouterState::require(cx).location.pathname.as_ref(),
@@ -245,6 +263,7 @@ fn is_child_path(pathname: &str, to: &str, case_sensitive: bool) -> bool {
 #[cfg(test)]
 mod tests {
   use super::{Link, NavLink, is_active_path};
+  use crate::RouterState;
   use gpui::{Element, ElementId};
 
   #[test]
@@ -299,6 +318,34 @@ mod tests {
 
       let nav = NavLink::new().to("/about").element_id("nav-about").link_element(cx);
       assert_eq!(Element::id(&nav), Some(ElementId::from("nav-about")));
+    });
+  }
+
+  #[gpui::test]
+  async fn test_link_resolves_relative_targets(cx: &mut gpui::TestAppContext) {
+    cx.update(crate::init);
+
+    cx.update(|cx| {
+      {
+        let state = RouterState::require_mut(cx);
+        state.record_match(&gpui::SharedString::from("/"));
+        state.record_match(&gpui::SharedString::from("/settings"));
+      }
+
+      // Nothing is rendering, so the deepest match is the base.
+      let relative = Link::new().to("profile").link_element(cx);
+      assert_eq!(Element::id(&relative), Some(ElementId::from("/settings/profile")));
+
+      // Path-relative resolves against the current pathname.
+      {
+        let state = RouterState::require_mut(cx);
+        state.location.pathname = gpui::SharedString::from("/settings");
+      }
+      let path_relative = Link::new()
+        .to("profile")
+        .relative(crate::Relative::Path)
+        .link_element(cx);
+      assert_eq!(Element::id(&path_relative), Some(ElementId::from("/settings/profile")));
     });
   }
 }

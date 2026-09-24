@@ -152,7 +152,15 @@ fn query_summary(cx: &App) -> SharedString {
 }
 
 fn about_layout() -> impl IntoElement {
-  div().id("about-shell").child(Outlet::new())
+  div()
+    .id("about-shell")
+    .child(
+      div()
+        .id("link-relative-team")
+        .test_support()
+        .child(Link::new().to("team").child(div().child("Relative team link"))),
+    )
+    .child(Outlet::new())
 }
 
 /// Layout-style chrome nested inside an element route.
