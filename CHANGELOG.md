@@ -12,6 +12,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `gpui_router::prelude`, which exports the router types, hooks and `init` in one import (`use gpui_router::prelude::*;`).
 - Relative targets, like React Router: `Link::new().to("about")` inside a route resolves against that route, `to=".."` climbs one route, and `Link::relative(Relative::Path)` (also on `NavLink` and `Navigator`) resolves against the current pathname instead. `Redirect` and `use_match` follow the same rule.
 - `Redirect`, React Router's `<Navigate>`: `Redirect::to("/login")` navigates while it renders, and `.replace(true)` replaces the current history entry. A redirect whose target is already current does nothing, so a re-render cannot navigate twice.
 - A location now carries `search` (the `?…` part), `hash` (the `#…` part) and `key`, like React Router's `location`, and navigating to `"/search?q=rust#results"` keeps those parts instead of treating them as a pathname. `use_search_params(cx)` reads the query string as key/value pairs, and `use_set_search_params(cx)` navigates with new ones (`push` or `replace`).

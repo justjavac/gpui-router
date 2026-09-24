@@ -94,7 +94,7 @@ cargo test --no-default-features --features gpui-pre,test-support   # gpui-kit b
 ```rust
 use gpui::prelude::*;
 use gpui::{App, Application, Context, Window, WindowOptions, div};
-use gpui_router::{NavLink, Route, Routes, init as router_init};
+use gpui_router::prelude::*;
 
 struct HelloWorld {}
 
@@ -139,7 +139,7 @@ fn not_match() -> impl IntoElement {
 
 fn main() {
   Application::new().run(|cx: &mut App| {
-    router_init(cx);
+    init(cx);
     cx.activate(true);
     cx.open_window(WindowOptions::default(), |_, cx| cx.new(|_cx| HelloWorld {}))
       .unwrap();

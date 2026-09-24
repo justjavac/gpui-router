@@ -120,7 +120,7 @@ use_set_search_params(cx)
 9. ✅ `Location { pathname, search, hash, key }`, `use_search_params()`, `use_set_search_params()`. `Location::state` is still open and rides with item 13.
 10. ✅ `Redirect::to(..)`, including `replace(true)`.
 11. ✅ Relative `to` resolution with `Relative::{Route, Path}`, including `..` climbing a route (`Route`, the default) or a path segment (`Path`).
-12. `gpui_router::prelude`.
+12. ✅ `gpui_router::prelude`, which the README's usage example now imports.
 
 ### Phase 3 — data APIs (design first)
 

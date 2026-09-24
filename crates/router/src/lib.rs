@@ -60,3 +60,35 @@ pub mod __private {
 pub fn init(cx: &mut gpui::App) {
   RouterState::init(cx);
 }
+
+/// Everything an application normally imports at once:
+///
+/// ```ignore
+/// use gpui_router::prelude::*;
+/// ```
+pub mod prelude {
+  pub use crate::{
+    IntoLayout, Layout, Link, Location, Match, NavLink, Navigator, Outlet, Redirect, Relative, Route, Router,
+    RouterState, Routes, SearchParams, SearchParamsSetter, init, link, nav_link, outlet, route, router, use_location,
+    use_match, use_matches, use_navigate, use_params, use_pattern, use_search_params, use_set_search_params,
+  };
+}
+
+#[cfg(test)]
+mod prelude_tests {
+  use crate::prelude::*;
+
+  #[test]
+  fn test_prelude_exports_the_common_surface() {
+    let routes = Routes::new().child(Route::new().path("about").element(|_, _| Outlet::new()));
+    let _link = Link::new().to("about").relative(Relative::Route);
+    let _nav_link = NavLink::new().to("/about").end(true);
+    let _redirect = Redirect::to("/about").replace(true);
+    let _params = SearchParams::default().set("q", "1");
+    let _router = Router::new();
+    let _outlet = Outlet::new();
+
+    assert_eq!(routes.routes().len(), 1);
+    assert_eq!(Location::default().pathname, "/");
+  }
+}
