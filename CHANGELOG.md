@@ -12,6 +12,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `location.state`: `Navigator::state`, `Link::state`, `NavLink::state` and `Redirect::state` attach string pairs to a navigation, and `use_location(cx).state` reads them, including after `back` and `forward`. It is a sorted map rather than a `HashMap`, because that keeps the `Ord`/`PartialOrd` implementations `Location` already had.
 - `gpui_router::prelude`, which exports the router types, hooks and `init` in one import (`use gpui_router::prelude::*;`).
 - Relative targets, like React Router: `Link::new().to("about")` inside a route resolves against that route, `to=".."` climbs one route, and `Link::relative(Relative::Path)` (also on `NavLink` and `Navigator`) resolves against the current pathname instead. `Redirect` and `use_match` follow the same rule.
 - `Redirect`, React Router's `<Navigate>`: `Redirect::to("/login")` navigates while it renders, and `.replace(true)` replaces the current history entry. A redirect whose target is already current does nothing, so a re-render cannot navigate twice.

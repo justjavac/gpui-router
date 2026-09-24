@@ -114,6 +114,12 @@ fn element_routes_render_their_children_through_the_outlet(cx: &mut TestAppConte
     window.click("link-relative-team", cx);
     window.render_frame(cx);
     assert_eq!(window.find("page").label(), Some("team"));
+
+    // A link can carry location state, like React Router's `state` prop.
+    window.click("link-state", cx);
+    window.render_frame(cx);
+    assert_eq!(window.find("page").label(), Some("about"));
+    assert_eq!(window.find("state").label(), Some("/settings/profile"));
   })
   .unwrap();
 }

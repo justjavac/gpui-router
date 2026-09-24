@@ -31,7 +31,7 @@ pull request per feature, and a `CHANGELOG.md` entry under `Unreleased`.
 | Question | Decision |
 | --- | --- |
 | Path syntax | Accept `:id` / `*` / `:id?` (React Router) **and** `{id}` / `{*splat}` (matchit). |
-| `Location::state` | A string map (`Option<HashMap<SharedString, SharedString>>`); keeps `Clone` and `PartialEq`. |
+| `Location::state` | A string map (`Option<BTreeMap<SharedString, SharedString>>`). Sorting it keeps `Clone`, `PartialEq` and the `Ord`/`PartialOrd` that `Location` already had. |
 | `Link` | Add it. React Router users look for both `Link` and `NavLink`. |
 | Relative `to` | Default to React Router's `relative="route"`; `Relative::Path` selects the absolute behaviour. |
 | History | `push` / `replace` / `back` / `forward` land in Phase 2. |
@@ -117,10 +117,11 @@ use_set_search_params(cx)
 6. ✅ `Link`, and `NavLink::case_sensitive` with React Router's case-insensitive default.
 7. ✅ `Navigator` with `push` / `replace` / `back` / `forward` and a history stack (the last 100 locations).
 8. ✅ `use_matches()` and `use_match(pattern)`. Per-route parameters and relative patterns wait for items 9 and 11; today `Match` carries the pattern and the concrete pathname, and `use_params` gives the leaf's parameters.
-9. ✅ `Location { pathname, search, hash, key }`, `use_search_params()`, `use_set_search_params()`. `Location::state` is still open and rides with item 13.
+9. ✅ `Location { pathname, search, hash, key }`, `use_search_params()`, `use_set_search_params()`.
 10. ✅ `Redirect::to(..)`, including `replace(true)`.
 11. ✅ Relative `to` resolution with `Relative::{Route, Path}`, including `..` climbing a route (`Route`, the default) or a path segment (`Path`).
 12. ✅ `gpui_router::prelude`, which the README's usage example now imports.
+13. ✅ `Location::state`, set through `Navigator::state`, `Link::state`, `NavLink::state` and `Redirect::state`.
 
 ### Phase 3 — data APIs (design first)
 
