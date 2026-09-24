@@ -82,6 +82,11 @@ fn element_routes_render_their_children_through_the_outlet(cx: &mut TestAppConte
     window.click("nav-settings", cx);
     window.render_frame(cx);
     assert_eq!(window.find("page").label(), Some("settings-profile"));
+
+    // A plain `Link` navigates too.
+    window.click("link-team", cx);
+    window.render_frame(cx);
+    assert_eq!(window.find("page").label(), Some("team"));
   })
   .unwrap();
 }

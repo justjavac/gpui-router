@@ -12,6 +12,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `Link`, React Router's plain navigation element, next to `NavLink`. `NavLink` gained `case_sensitive(false)`, matching React Router's `caseSensitive` default: the active check ignores case unless an application asks for exact matching.
 - Paths accept React Router's syntax: `users/:id` for a dynamic segment and `*` for a splat (also exposed as `params["*"]`). The `{id}` / `{*splat}` spellings keep working.
 - `use_pattern(cx)` returns the route pattern that matched the current location, for example `/users/:id` while the pathname is `/users/42`.
 - `NavLink::element_id(...)` sets the id of the clickable element, which otherwise defaults to the target path.

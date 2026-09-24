@@ -27,9 +27,10 @@ The API follows React Router, so most of the knowledge transfers directly:
 | `<Outlet />` | `Outlet::new()` |
 | `path="users/:id"` | the same, and `{id}` also works |
 | `path="*"` | the same, and it matches `/` like React Router |
-| `<NavLink to>` | `NavLink::new().to(...)` |
+| `<Link to>` | `Link::new().to(...)` |
+| `<NavLink to>` | `NavLink::new().to(...).active(...).end(...)` |
 | `useParams()`, `useLocation()`, `useNavigate()` | `use_params(cx)`, `use_location(cx)`, `use_navigate(cx)` |
-| `<Link to>`, `navigate(-1)`, `useSearchParams()`, `<Navigate>` | planned, see [the alignment plan](./docs/react-router-alignment.md) |
+| `navigate(-1)`, `useSearchParams()`, `<Navigate>` | planned, see [the alignment plan](./docs/react-router-alignment.md) |
 | `loader`, `action`, `errorElement` | not planned yet; the plan covers a design pass first |
 
 Two deliberate differences: `Route::layout(...)` plus `#[derive(IntoLayout)]` has
