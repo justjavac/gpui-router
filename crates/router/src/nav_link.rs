@@ -1,6 +1,5 @@
-#[cfg(test)]
-use crate::normalize_pathname;
-use crate::{RouterState, normalize_shared_pathname, use_navigate};
+use crate::state::split_target;
+use crate::{RouterState, normalize_pathname, use_navigate};
 use gpui::*;
 use smallvec::SmallVec;
 
@@ -82,7 +81,9 @@ impl Link {
     // when the user clicks it; fail while rendering instead.
     let _ = RouterState::require(cx);
 
-    let to = normalize_shared_pathname(&self.to);
+    // The target keeps its query string and fragment: the navigator parses
+    // them, and routes only match the pathname.
+    let to = self.to.clone();
     let element_id = self.element_id.take().unwrap_or_else(|| ElementId::from(to.clone()));
 
     self
@@ -182,7 +183,8 @@ impl NavLink {
 
   /// Applies the active style, then renders the underlying link.
   fn link_element(mut self, cx: &App) -> Stateful<Div> {
-    let to = normalize_shared_pathname(&self.link.to);
+    let (pathname, _, _) = split_target(self.link.to.as_ref());
+    let to = normalize_pathname(pathname);
     let is_active = is_active(
       RouterState::require(cx).location.pathname.as_ref(),
       to.as_ref(),
