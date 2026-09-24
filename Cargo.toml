@@ -15,7 +15,7 @@ publish = false
 [workspace.dependencies]
 # Path dependencies need an explicit version so `cargo package`/`cargo publish`
 # can resolve them from crates.io.
-gpui-router = { path = "crates/router", version = "0.4.1" }
+gpui-router = { path = "crates/router", version = "0.5.0" }
 gpui-router-macros = { path = "crates/router-macros", version = "0.4.0" }
 hashbrown = "0.16.0"
 gpui = "0.2.1"
