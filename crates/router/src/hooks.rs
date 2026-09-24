@@ -19,6 +19,7 @@ use hashbrown::HashMap;
 pub struct Navigator<'a> {
   state: &'a mut RouterState,
   relative: Relative,
+  location_state: Option<std::collections::BTreeMap<SharedString, SharedString>>,
 }
 
 impl Navigator<'_> {
@@ -30,10 +31,29 @@ impl Navigator<'_> {
     self
   }
 
+  /// Attaches data to the following navigations, like React Router's
+  /// `navigate(to, { state })`. It is stored on the location and restored by
+  /// `back` and `forward`.
+  pub fn state<I, K, V>(&mut self, state: I) -> &mut Self
+  where
+    I: IntoIterator<Item = (K, V)>,
+    K: Into<SharedString>,
+    V: Into<SharedString>,
+  {
+    self.location_state = Some(
+      state
+        .into_iter()
+        .map(|(key, value)| (key.into(), value.into()))
+        .collect(),
+    );
+    self
+  }
+
   /// Navigates to `to`, like React Router's `navigate(to)`.
   pub fn push(&mut self, to: impl Into<SharedString>) {
     let target = resolve_target(self.state, to.into().as_ref(), self.relative);
-    let location = Location::parse(target);
+    let mut location = Location::parse(target);
+    location.state = self.location_state.clone();
     self.state.push_location(location);
   }
 
@@ -41,7 +61,8 @@ impl Navigator<'_> {
   /// `navigate(to, { replace: true })`.
   pub fn replace(&mut self, to: impl Into<SharedString>) {
     let target = resolve_target(self.state, to.into().as_ref(), self.relative);
-    let location = Location::parse(target);
+    let mut location = Location::parse(target);
+    location.state = self.location_state.clone();
     self.state.replace_location(location);
   }
 
@@ -63,6 +84,7 @@ pub fn use_navigate(cx: &mut App) -> Navigator<'_> {
   Navigator {
     state: RouterState::require_mut(cx),
     relative: Relative::Route,
+    location_state: None,
   }
 }
 
@@ -427,6 +449,41 @@ pub mod tests {
         nav.relative(crate::Relative::Path).push("../billing");
       }
       assert_eq!(super::use_location(cx).pathname, "/billing");
+    });
+  }
+
+  #[gpui::test]
+  async fn test_navigator_location_state(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+
+      let return_to = |cx: &gpui::App| {
+        super::use_location(cx)
+          .state
+          .as_ref()
+          .and_then(|state| state.get("returnTo"))
+          .map(|value| value.to_string())
+      };
+
+      {
+        let mut nav = use_navigate(cx);
+        nav.state([("returnTo", "/settings")]).push("/login");
+      }
+      assert_eq!(return_to(cx).as_deref(), Some("/settings"));
+
+      // A navigation without state carries none.
+      {
+        let mut nav = use_navigate(cx);
+        nav.push("/about");
+      }
+      assert_eq!(return_to(cx), None);
+
+      // Going back restores the state of that entry.
+      {
+        let mut nav = use_navigate(cx);
+        nav.back();
+      }
+      assert_eq!(return_to(cx).as_deref(), Some("/settings"));
     });
   }
 }

@@ -167,6 +167,9 @@ pub struct Location {
   /// A key that is unique per history entry, like React Router's
   /// `location.key`. The initial location uses `"default"`.
   pub key: SharedString,
+  /// Data carried by the navigation that produced this location, like React
+  /// Router's `location.state`. A sorted map keeps `Location` orderable.
+  pub state: Option<std::collections::BTreeMap<SharedString, SharedString>>,
 }
 
 impl Location {
@@ -180,6 +183,7 @@ impl Location {
       search,
       hash,
       key: SharedString::from("default"),
+      state: None,
     }
   }
 }
@@ -229,6 +233,7 @@ impl Default for Location {
       search: SharedString::default(),
       hash: SharedString::default(),
       key: SharedString::from("default"),
+      state: None,
     }
   }
 }

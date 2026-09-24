@@ -16,6 +16,7 @@ use gpui::*;
 pub struct Redirect {
   to: SharedString,
   replace: bool,
+  state: Option<std::collections::BTreeMap<SharedString, SharedString>>,
 }
 
 impl Redirect {
@@ -24,6 +25,7 @@ impl Redirect {
     Self {
       to: to.into(),
       replace: false,
+      state: None,
     }
   }
 
@@ -31,6 +33,23 @@ impl Redirect {
   /// adding one. This is `<Navigate replace />`.
   pub fn replace(mut self, replace: bool) -> Self {
     self.replace = replace;
+    self
+  }
+
+  /// Attaches data to the navigation, like React Router's `state` prop on
+  /// `<Navigate>`.
+  pub fn state<I, K, V>(mut self, state: I) -> Self
+  where
+    I: IntoIterator<Item = (K, V)>,
+    K: Into<SharedString>,
+    V: Into<SharedString>,
+  {
+    self.state = Some(
+      state
+        .into_iter()
+        .map(|(key, value)| (key.into(), value.into()))
+        .collect(),
+    );
     self
   }
 }
@@ -45,6 +64,9 @@ impl RenderOnce for Redirect {
 
     if !already_there {
       let mut navigate = use_navigate(cx);
+      if let Some(state) = self.state {
+        navigate.state(state);
+      }
       if self.replace {
         navigate.replace(self.to);
       } else {

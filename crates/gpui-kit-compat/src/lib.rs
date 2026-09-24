@@ -126,7 +126,16 @@ fn layout(cx: &App) -> impl IntoElement + use<> {
               .child(div().child("Billing")),
           ),
         )
-        .child(div().id("query").test_support().aria_label(query_summary(cx))),
+        .child(div().id("query").test_support().aria_label(query_summary(cx)))
+        .child(
+          div().id("link-state").test_support().child(
+            Link::new()
+              .to("/about")
+              .state([("returnTo", "/settings/profile")])
+              .child(div().child("With state")),
+          ),
+        )
+        .child(div().id("state").test_support().aria_label(state_summary(cx))),
     )
     .child(Outlet::new())
 }
@@ -149,6 +158,17 @@ fn query_summary(cx: &App) -> SharedString {
   let tab = gpui_router::use_search_params(cx).get("tab").unwrap_or("");
 
   SharedString::from(format!("{search}|{tab}"))
+}
+
+/// The `returnTo` value carried by the current location, which is what
+/// `location.state` is for.
+fn state_summary(cx: &App) -> SharedString {
+  gpui_router::use_location(cx)
+    .state
+    .as_ref()
+    .and_then(|state| state.get("returnTo"))
+    .cloned()
+    .unwrap_or_default()
 }
 
 fn about_layout() -> impl IntoElement {

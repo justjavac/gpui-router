@@ -24,6 +24,7 @@ pub struct Link {
   to: SharedString,
   element_id: Option<ElementId>,
   relative: Relative,
+  state: Option<std::collections::BTreeMap<SharedString, SharedString>>,
 }
 
 impl Default for Link {
@@ -34,6 +35,7 @@ impl Default for Link {
       to: Default::default(),
       element_id: None,
       relative: Relative::Route,
+      state: None,
     }
   }
 }
@@ -84,6 +86,23 @@ impl Link {
     self
   }
 
+  /// Attaches data to the navigation, like React Router's `state` prop on
+  /// `Link`. It is stored on the location and restored by `back`/`forward`.
+  pub fn state<I, K, V>(mut self, state: I) -> Self
+  where
+    I: IntoIterator<Item = (K, V)>,
+    K: Into<SharedString>,
+    V: Into<SharedString>,
+  {
+    self.state = Some(
+      state
+        .into_iter()
+        .map(|(key, value)| (key.into(), value.into()))
+        .collect(),
+    );
+    self
+  }
+
   /// Applies the click handler and the element id, and returns the element an
   /// application renders.
   fn link_element(mut self, cx: &App) -> Stateful<Div> {
@@ -95,12 +114,16 @@ impl Link {
     // is known; the click handler only navigates to the resolved target.
     let to = resolve_target(RouterState::require(cx), self.to.as_ref(), self.relative);
     let element_id = self.element_id.take().unwrap_or_else(|| ElementId::from(to.clone()));
+    let location_state = self.state.take();
 
     self
       .base
       .id(element_id)
       .on_click(move |_, window, cx| {
         let mut navigate = use_navigate(cx);
+        if let Some(state) = location_state.clone() {
+          navigate.state(state);
+        }
         navigate.push(to.clone());
         window.refresh();
       })
@@ -170,6 +193,18 @@ impl NavLink {
   /// like React Router's `relative="path"` on `NavLink`.
   pub fn relative(mut self, relative: Relative) -> Self {
     self.link = self.link.relative(relative);
+    self
+  }
+
+  /// Attaches data to the navigation, like React Router's `state` prop on
+  /// `NavLink`.
+  pub fn state<I, K, V>(mut self, state: I) -> Self
+  where
+    I: IntoIterator<Item = (K, V)>,
+    K: Into<SharedString>,
+    V: Into<SharedString>,
+  {
+    self.link = self.link.state(state);
     self
   }
 

@@ -35,6 +35,7 @@ The API follows React Router, so most of the knowledge transfers directly:
 | `useNavigate()` | `use_navigate(cx)`, a `Navigator` with `push` / `replace` / `back` / `forward` |
 | `navigate(-1)`, `navigate(1)` | `nav.back()`, `nav.forward()` |
 | `useSearchParams()` | `use_search_params(cx)` to read, `use_set_search_params(cx)` to write |
+| `navigate(to, { state })`, `location.state` | `nav.state([("returnTo", "/x")]).push(to)` and `use_location(cx).state` |
 | `<Navigate to replace />` | `Redirect::to("/login").replace(true)` |
 | `loader`, `action`, `errorElement` | not planned yet; the plan covers a design pass first |
 
