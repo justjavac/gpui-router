@@ -337,9 +337,13 @@ impl CompiledPattern {
         splat = Some(SharedString::from(name.to_owned()));
         matcher.push_str(segment);
       } else if let Some(name) = segment.strip_prefix(':') {
+        reject_optional_segment(path, name);
         matcher.push('{');
         matcher.push_str(name);
         matcher.push('}');
+      } else if let Some(name) = segment.strip_prefix('{').and_then(|rest| rest.strip_suffix('}')) {
+        reject_optional_segment(path, name);
+        matcher.push_str(segment);
       } else {
         matcher.push_str(segment);
       }
@@ -373,6 +377,20 @@ impl CompiledPattern {
       react_router_splat: self.react_router_splat,
       empty_splat,
     }
+  }
+}
+
+/// React Router writes an optional segment as `:name?`, and the matcher syntax
+/// spells the same thing `{name?}`. Both would compile to a parameter whose
+/// name is literally `name?`, which matches `/docs/intro` but never `/docs`, so
+/// reject them until optional segments have a priority rule against index and
+/// sibling routes.
+fn reject_optional_segment(path: &str, name: &str) {
+  if let Some(name) = name.strip_suffix('?') {
+    panic!(
+      "invalid route path {path:?}: the optional segment `:{name}?` is not supported yet; \
+       add an index route for the parent path and a separate route for the segment instead"
+    );
   }
 }
 
@@ -562,5 +580,19 @@ mod tests {
     assert!(matches_pattern("files/*", "/files/a/b.txt"));
     assert!(matches_pattern("files/*", "/files"));
     assert!(!matches_pattern("files/*", "/other"));
+  }
+
+  #[test]
+  #[should_panic(expected = "optional segment `:page?` is not supported yet")]
+  fn test_react_router_optional_segments_are_rejected() {
+    // `:page?` used to compile to a parameter named `page?`, which matched
+    // `/docs/intro` but silently never matched `/docs`.
+    CompiledPattern::new("/docs/:page?");
+  }
+
+  #[test]
+  #[should_panic(expected = "optional segment `:page?` is not supported yet")]
+  fn test_matcher_optional_segments_are_rejected() {
+    CompiledPattern::new("/docs/{page?}");
   }
 }
