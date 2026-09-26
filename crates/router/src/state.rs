@@ -17,24 +17,49 @@ pub enum Relative {
 }
 
 thread_local! {
-  /// The route whose element is being built, so that relative targets inside
-  /// that element resolve against it.
-  static RENDER_ROUTE: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
+  /// The routes whose elements are being laid out, outermost first, so that a
+  /// relative target inside a route's element resolves against that route.
+  ///
+  /// GPUI renders the `RenderOnce` components of an element tree while it lays
+  /// the tree out, after the route's element closure returned, so this is a
+  /// stack that an element wrapper pushes around the whole subtree instead of a
+  /// scope around a single call.
+  static RENDER_ROUTES: std::cell::RefCell<Vec<usize>> = const { std::cell::RefCell::new(Vec::new()) };
 }
 
-/// Runs `build` with `route` as the route being rendered.
-pub(crate) fn with_render_route<R>(route: Option<usize>, build: impl FnOnce() -> R) -> R {
-  struct Restore(Option<usize>);
+/// Keeps `route` on top of the render stack until it is dropped.
+pub(crate) struct RenderRouteGuard {
+  _private: (),
+}
 
-  impl Drop for Restore {
-    fn drop(&mut self) {
-      let previous = self.0.take();
-      RENDER_ROUTE.with(|slot| slot.set(previous));
-    }
+impl Drop for RenderRouteGuard {
+  fn drop(&mut self) {
+    RENDER_ROUTES.with(|stack| {
+      stack.borrow_mut().pop();
+    });
   }
+}
 
-  let previous = RENDER_ROUTE.with(|slot| slot.replace(route));
-  let _restore = Restore(previous);
+/// Pushes `route` on top of the render stack.
+///
+/// The guard has to be held while the whole element subtree is laid out, which
+/// is what [`RouteScope`](crate::route) does; a scope around a single call only
+/// covers elements that are built eagerly.
+pub(crate) fn push_render_route(route: usize) -> RenderRouteGuard {
+  RENDER_ROUTES.with(|stack| stack.borrow_mut().push(route));
+
+  RenderRouteGuard { _private: () }
+}
+
+/// The route whose element is currently being laid out, if any.
+fn current_render_route() -> Option<usize> {
+  RENDER_ROUTES.with(|stack| stack.borrow().last().copied())
+}
+
+/// Runs `build` with `route` on top of the render stack.
+pub(crate) fn with_render_route<R>(route: usize, build: impl FnOnce() -> R) -> R {
+  let _scope = push_render_route(route);
+
   build()
 }
 
@@ -52,7 +77,7 @@ pub(crate) fn resolve_target(state: &RouterState, to: &str, relative: Relative) 
   let (path, from) = match relative {
     Relative::Path => (path.to_string(), state.location.pathname.to_string()),
     Relative::Route => {
-      let mut route = RENDER_ROUTE.with(|slot| slot.get()).or(state.current_route);
+      let mut route = current_render_route().or(state.current_route);
       let mut segments: Vec<&str> = path.split('/').collect();
 
       while segments.first() == Some(&"..") {
@@ -614,7 +639,7 @@ mod tests {
 
     // While rendering, the route being rendered wins.
     assert_eq!(
-      with_render_route(Some(0), || resolve_target(&state, "profile", Relative::Route)),
+      with_render_route(0, || resolve_target(&state, "profile", Relative::Route)),
       "/profile"
     );
   }

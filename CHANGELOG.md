@@ -9,6 +9,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 
 - A route with children and neither an element nor a layout rendered nothing. It now renders the matched child directly, which is React Router's pathless layout route.
+- A relative `to` inside a layout route resolved against the deepest match instead of the route that rendered it, so a `NavLink::new().to("security")` in a `/settings` layout went to `/settings/profile/security` while a child route was on screen. `Link`, `NavLink` and `Redirect` now resolve against the route that produced them, like React Router's `relative="route"` ([#35], [#36]).
 
 ### Added
 
@@ -74,6 +75,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 [#9]: https://github.com/justjavac/gpui-router/issues/9
 [#11]: https://github.com/justjavac/gpui-router/pull/11
 [#12]: https://github.com/justjavac/gpui-router/pull/12
+[#35]: https://github.com/justjavac/gpui-router/issues/35
+[#36]: https://github.com/justjavac/gpui-router/pull/36
 
 [Unreleased]: https://github.com/justjavac/gpui-router/compare/v0.5.0...HEAD
 [0.5.0]: https://github.com/justjavac/gpui-router/compare/v0.4.1...v0.5.0

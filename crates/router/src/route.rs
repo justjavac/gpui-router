@@ -1,12 +1,91 @@
 use crate::matcher;
 use crate::outlet::with_outlet_scope;
-use crate::state::with_render_route;
+use crate::state::{push_render_route, with_render_route};
 use crate::{Layout, RouterState, normalize_pathname};
 use gpui::*;
 use smallvec::SmallVec;
 use std::fmt::{Debug, Display};
 
 type RouteElementFactory = Box<dyn Fn(&mut Window, &mut App) -> AnyElement>;
+
+/// Keeps a route on the render stack while GPUI lays its element tree out.
+///
+/// A route's element closure returns an element tree; the `RenderOnce`
+/// components inside it (`Link`, `NavLink`, `Redirect`, and application
+/// components) only run while that tree is laid out, which happens after the
+/// closure returned. Wrapping the tree in this element is what makes a relative
+/// target inside it resolve against the route that produced it, the way React
+/// Router's `relative="route"` does, instead of against the deepest match.
+struct RouteScope {
+  route: usize,
+  element: AnyElement,
+}
+
+impl RouteScope {
+  fn new(route: usize, element: AnyElement) -> Self {
+    Self { route, element }
+  }
+}
+
+impl Element for RouteScope {
+  type RequestLayoutState = ();
+  type PrepaintState = Option<FocusHandle>;
+
+  fn id(&self) -> Option<ElementId> {
+    None
+  }
+
+  fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+    None
+  }
+
+  fn request_layout(
+    &mut self,
+    _id: Option<&GlobalElementId>,
+    _inspector_id: Option<&InspectorElementId>,
+    window: &mut Window,
+    cx: &mut App,
+  ) -> (LayoutId, Self::RequestLayoutState) {
+    // Laying the subtree out is what renders the components inside it, so the
+    // scope covers this call, not just the route's element closure.
+    let _scope = push_render_route(self.route);
+
+    (self.element.request_layout(window, cx), ())
+  }
+
+  fn prepaint(
+    &mut self,
+    _id: Option<&GlobalElementId>,
+    _inspector_id: Option<&InspectorElementId>,
+    _bounds: Bounds<Pixels>,
+    _request_layout: &mut Self::RequestLayoutState,
+    window: &mut Window,
+    cx: &mut App,
+  ) -> Self::PrepaintState {
+    self.element.prepaint(window, cx)
+  }
+
+  fn paint(
+    &mut self,
+    _id: Option<&GlobalElementId>,
+    _inspector_id: Option<&InspectorElementId>,
+    _bounds: Bounds<Pixels>,
+    _request_layout: &mut Self::RequestLayoutState,
+    _prepaint: &mut Self::PrepaintState,
+    window: &mut Window,
+    cx: &mut App,
+  ) {
+    self.element.paint(window, cx);
+  }
+}
+
+impl IntoElement for RouteScope {
+  type Element = Self;
+
+  fn into_element(self) -> Self::Element {
+    self
+  }
+}
 
 /// Creates a new [`Route`](crate::Route) element.
 pub fn route() -> impl IntoElement {
@@ -172,9 +251,12 @@ impl RenderOnce for Route {
     if let Some(element_fn) = self.element {
       let child = Route::take_matched_child(&mut routes, basename.as_ref(), window, cx);
       // The outlet scope has to cover the element closure, because that is when
-      // the outlet is built; the render route only has to cover the same call.
+      // the outlet is built; the render scope has to cover the layout of the
+      // whole tree, because that is when the components inside it render.
       return with_outlet_scope(child, || {
-        with_render_route(Some(route_index), || element_fn(window, cx))
+        let element = with_render_route(route_index, || element_fn(window, cx));
+
+        RouteScope::new(route_index, element).into_any_element()
       });
     }
 
@@ -182,8 +264,8 @@ impl RenderOnce for Route {
       if let Some(child) = Route::take_matched_child(&mut routes, basename.as_ref(), window, cx) {
         layout.outlet(child);
       }
-      return with_render_route(Some(route_index), || {
-        layout.render_layout(window, cx).into_any_element()
+      return with_render_route(route_index, || {
+        RouteScope::new(route_index, layout.render_layout(window, cx).into_any_element()).into_any_element()
       });
     }
 
