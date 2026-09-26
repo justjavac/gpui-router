@@ -1,6 +1,6 @@
 use crate::matcher::matches_pattern;
 use crate::state::resolve_target;
-use crate::{Location, Match, Relative, RouterState, SearchParams};
+use crate::{Location, Match, NavigationType, Relative, RouterState, SearchParams};
 use gpui::{App, SharedString};
 use hashbrown::HashMap;
 
@@ -94,6 +94,15 @@ pub fn use_location(cx: &App) -> &Location {
   &RouterState::require(cx).location
 }
 
+/// Returns how the current location was reached, mirroring React Router's
+/// `useNavigationType`: the initial location, `back` and `forward` are
+/// [`NavigationType::Pop`], [`Navigator::push`] is
+/// [`NavigationType::Push`] and [`Navigator::replace`] is
+/// [`NavigationType::Replace`].
+pub fn use_navigation_type(cx: &App) -> NavigationType {
+  RouterState::require(cx).navigation_type
+}
+
 /// Returns the route pattern that matched the current location, if any.
 /// For example, `/users/{id}` while the pathname is `/users/42`.
 pub fn use_pattern(cx: &App) -> Option<&SharedString> {
@@ -172,8 +181,10 @@ pub fn use_match(cx: &App, pattern: &str) -> Option<Match> {
 
 #[cfg(all(test, any(feature = "gpui", feature = "test-support")))]
 pub mod tests {
-  use super::{use_match, use_matches, use_navigate, use_pattern, use_search_params, use_set_search_params};
-  use crate::{Route, RouterState, Routes, normalize_pathname};
+  use super::{
+    use_match, use_matches, use_navigate, use_navigation_type, use_pattern, use_search_params, use_set_search_params,
+  };
+  use crate::{NavigationType, Route, RouterState, Routes, normalize_pathname};
   use gpui::{SharedString, TestAppContext};
 
   #[gpui::test]
@@ -277,6 +288,30 @@ pub mod tests {
         nav.back();
       }
       assert_eq!(location(cx), "/about", "replace keeps the history length");
+    });
+  }
+
+  #[gpui::test]
+  async fn test_use_navigation_type(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+      assert_eq!(
+        use_navigation_type(cx),
+        NavigationType::Pop,
+        "the initial location is a pop"
+      );
+
+      use_navigate(cx).push("/about");
+      assert_eq!(use_navigation_type(cx), NavigationType::Push);
+
+      use_navigate(cx).replace("/dashboard");
+      assert_eq!(use_navigation_type(cx), NavigationType::Replace);
+
+      use_navigate(cx).back();
+      assert_eq!(use_navigation_type(cx), NavigationType::Pop);
+
+      use_navigate(cx).forward();
+      assert_eq!(use_navigation_type(cx), NavigationType::Pop);
     });
   }
 

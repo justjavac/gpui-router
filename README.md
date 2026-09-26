@@ -34,6 +34,7 @@ The API follows React Router, so most of the knowledge transfers directly:
 | `useParams()`, `useLocation()` | `use_params(cx)`, `use_location(cx)` |
 | `useMatches()`, `useMatch(pattern)` | `use_matches(cx)`, `use_match(cx, "users/:id")` |
 | `useNavigate()` | `use_navigate(cx)`, a `Navigator` with `push` / `replace` / `back` / `forward` |
+| `useNavigationType()` | `use_navigation_type(cx)`, a `NavigationType` |
 | `navigate(-1)`, `navigate(1)` | `nav.back()`, `nav.forward()` |
 | `useSearchParams()` | `use_search_params(cx)` to read, `use_set_search_params(cx)` to write |
 | `navigate(to, { state })`, `location.state` | `nav.state([("returnTo", "/x")]).push(to)` and `use_location(cx).state` |
@@ -174,6 +175,7 @@ Hooks read the router state from any `Render` implementation or event handler:
 | `use_search_params(cx)` | the query string, parsed into key/value pairs |
 | `use_set_search_params(cx)` | a setter that navigates with new query parameters |
 | `use_navigate(cx)` | a `Navigator` with `push`, `replace`, `back` and `forward` |
+| `use_navigation_type(cx)` | how the current location was reached: `NavigationType::{Pop, Push, Replace}` |
 
 ```rust
 use gpui_router::{use_params, use_pattern};

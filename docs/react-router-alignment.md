@@ -70,7 +70,7 @@ carry the current status.
 | `<Link replace>` | none | `replace(true)` on `Link`/`NavLink` | 4 ✅ ([#43]) |
 | `navigate(-1)`, `{ replace: true }` | no history | `Navigator::{push, replace, back, forward}` | 2 |
 | `navigate()` re-renders | state changes, nothing repaints | navigation schedules a frame | 4 |
-| `useNavigationType()` | none | `Pop`/`Push`/`Replace` for the current entry | 4 |
+| `useNavigationType()` | none | `Pop`/`Push`/`Replace` for the current entry | 4 ✅ ([#45]) |
 | `useBlocker()` | none | guard unsaved changes before leaving a route | 4 |
 | `useMatches()`, `useMatch(pattern)` | only `use_pattern` | both hooks | 2 |
 | `useSearchParams()`, `search`, `hash` | `Location` only has `pathname`; `to="/x?q=1"` is treated as a literal path | `Location { pathname, search, hash, state, key }` plus read/write hooks | 2 |
@@ -176,9 +176,9 @@ effort. Nothing here is committed to a release yet.
    `matches`/`params` per `Routes` tree so a nested tree cannot rewrite what an
    outer tree recorded ([#40]). Do this before the data APIs, which would store
    loader data in the same state.
-3. ⬜ `useNavigationType()` (for transitions) and `useBlocker` /
-   `useBeforeUnload` (for unsaved changes). A desktop app needs the guard more
-   than a web app does.
+3. ⬜ `useBlocker` / `useBeforeUnload` (for unsaved changes). A desktop app
+   needs the guard more than a web app does. ✅ `useNavigationType()` landed for
+   transitions ([#44], [#45]).
 4. ⬜ Per-match `params` and an `id` on `Match`, completing `use_matches`.
 5. ⬜ One case-sensitivity rule for both route matching and `NavLink`.
 6. ⬜ Optional segments (`:id?`) with a documented priority rule, replacing the
@@ -197,7 +197,8 @@ are the work in [phase 4](#phase-4--remaining-alignment-open).
 | --- | --- | --- |
 | `<Routes>`, `<Route>`, `<Outlet>`, `<Link>`, `<NavLink>`, `useParams`, `useLocation`, `useMatches`, `useMatch`, `useSearchParams` | the same names (snake case) | aligned |
 | `<Link replace>` | `Link::new().replace(true)`, `NavLink::replace(true)` | aligned ([#43]) |
-| `useNavigationType`, `useBlocker`, `useBeforeUnload` | missing | open (phase 4) |
+| `useNavigationType` | `use_navigation_type(cx)`, a `NavigationType` | aligned ([#45]) |
+| `useBlocker`, `useBeforeUnload` | missing | open (phase 4) |
 | `navigate()` repaints the screen | `Navigator` mutates state, the caller refreshes the window | open ([#41]) |
 | `useOutletContext`, `lazy`, `<ScrollRestoration>` | missing | deliberate: GPUI has no context lookup, and the other two are web-only |
 | `<Navigate>` | `Redirect` | deliberate for now: a v5 name; `Navigate` is open work |
@@ -241,6 +242,7 @@ Rules for behaviour that only exists inside a frame:
 | `location.search`, `hash` and `state` | `test_use_search_params`, `test_navigator_location_state` |
 | `<Navigate replace>` does not navigate twice | `test_layout_relative_redirect_resolves_against_the_layout_route` (draws the target twice) |
 | `<Link replace>` reuses the history entry while a plain link adds one | `test_link_replace_reuses_the_current_history_entry`, `test_link_push_adds_a_history_entry` |
+| `useNavigationType` reports how the entry was reached | `test_use_navigation_type` |
 | optional segments are not silently mis-parsed | `test_react_router_optional_segments_are_rejected`, `test_matcher_optional_segments_are_rejected` |
 
 ## Risks
@@ -274,3 +276,5 @@ Rules for behaviour that only exists inside a frame:
 [#40]: https://github.com/justjavac/gpui-router/issues/40
 [#41]: https://github.com/justjavac/gpui-router/issues/41
 [#43]: https://github.com/justjavac/gpui-router/pull/43
+[#44]: https://github.com/justjavac/gpui-router/issues/44
+[#45]: https://github.com/justjavac/gpui-router/pull/45

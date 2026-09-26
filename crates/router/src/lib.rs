@@ -68,9 +68,10 @@ pub fn init(cx: &mut gpui::App) {
 /// ```
 pub mod prelude {
   pub use crate::{
-    IntoLayout, Layout, Link, Location, Match, NavLink, Navigator, Outlet, Redirect, Relative, Route, Router,
-    RouterState, Routes, SearchParams, SearchParamsSetter, init, link, nav_link, outlet, route, router, use_location,
-    use_match, use_matches, use_navigate, use_params, use_pattern, use_search_params, use_set_search_params,
+    IntoLayout, Layout, Link, Location, Match, NavLink, NavigationType, Navigator, Outlet, Redirect, Relative, Route,
+    Router, RouterState, Routes, SearchParams, SearchParamsSetter, init, link, nav_link, outlet, route, router,
+    use_location, use_match, use_matches, use_navigate, use_navigation_type, use_params, use_pattern,
+    use_search_params, use_set_search_params,
   };
 }
 
@@ -87,6 +88,7 @@ mod prelude_tests {
     let _params = SearchParams::default().set("q", "1");
     let _router = Router::new();
     let _outlet = Outlet::new();
+    let _navigation_type = NavigationType::Pop;
 
     assert_eq!(routes.routes().len(), 1);
     assert_eq!(Location::default().pathname, "/");
