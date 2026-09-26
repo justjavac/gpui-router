@@ -1,8 +1,10 @@
 #[cfg(test)]
 pub mod tests {
-  use crate::{Layout, Outlet, Route, RouterState, Routes, normalize_pathname};
+  use crate::{
+    Layout, NavLink, Outlet, Redirect, Route, RouterState, Routes, normalize_pathname, use_location, use_navigate,
+  };
   use gpui::prelude::*;
-  use gpui::{AnyElement, App, TestAppContext, VisualTestContext, Window};
+  use gpui::{AnyElement, App, Modifiers, TestAppContext, VisualTestContext, Window, div};
 
   struct Basic {}
 
@@ -419,5 +421,142 @@ pub mod tests {
         "/settings/profile"
       );
     });
+  }
+
+  /// A layout that links to a sibling of the child it is currently showing.
+  struct LayoutRelativeLinkView;
+
+  impl Render for LayoutRelativeLinkView {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+      Routes::new().basename("/").child(
+        Route::new()
+          .path("settings")
+          .element(|_, _| {
+            div()
+              .child(
+                NavLink::new()
+                  .to("security")
+                  .debug_selector(|| "nav-security".to_string())
+                  .child("Security"),
+              )
+              .child(Outlet::new())
+              .child(
+                NavLink::new()
+                  .to("billing")
+                  .debug_selector(|| "nav-billing".to_string())
+                  .child("Billing"),
+              )
+          })
+          .children(vec![
+            Route::new().path("profile").element(|_, _| "profile"),
+            Route::new().path("security").element(|_, _| "security"),
+            Route::new().path("billing").element(|_, _| "billing"),
+          ]),
+      )
+    }
+  }
+
+  #[gpui::test]
+  async fn test_layout_relative_link_resolves_against_the_layout_route(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+      use_navigate(cx).push("/settings/profile");
+    });
+
+    let (_, visual) = cx.add_window_view(|_, _| LayoutRelativeLinkView);
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+    });
+
+    // A layout link to `security` is relative to `/settings`, the route that
+    // renders it, not to the `/settings/profile` child that is on screen.
+    let bounds = visual
+      .debug_bounds("nav-security")
+      .expect("the layout rendered its link");
+    visual.simulate_mouse_move(bounds.center(), None, Modifiers::default());
+    // Hit testing uses the hitboxes of the last frame, so draw once with the
+    // pointer in place before clicking.
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+    });
+    visual.simulate_click(bounds.center(), Modifiers::default());
+    visual.run_until_parked();
+
+    let pathname = visual.update(|_, cx| RouterState::global(cx).location.pathname.clone());
+    assert_eq!(pathname.as_ref(), "/settings/security");
+  }
+
+  #[gpui::test]
+  async fn test_layout_relative_link_after_the_outlet_resolves_against_the_layout_route(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+      use_navigate(cx).push("/settings/profile");
+    });
+
+    let (_, visual) = cx.add_window_view(|_, _| LayoutRelativeLinkView);
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+    });
+
+    // The link renders after the child route's subtree, so the child's scope
+    // has to be popped again before it resolves its target.
+    let bounds = visual
+      .debug_bounds("nav-billing")
+      .expect("the layout rendered its link");
+    visual.simulate_mouse_move(bounds.center(), None, Modifiers::default());
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+    });
+    visual.simulate_click(bounds.center(), Modifiers::default());
+    visual.run_until_parked();
+
+    let pathname = visual.update(|_, cx| RouterState::global(cx).location.pathname.clone());
+    assert_eq!(pathname.as_ref(), "/settings/billing");
+  }
+
+  /// A layout that redirects a deep child to a sibling of that child.
+  struct LayoutRelativeRedirectView;
+
+  impl Render for LayoutRelativeRedirectView {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+      Routes::new().basename("/").child(
+        Route::new()
+          .path("settings")
+          .element(|_, cx| {
+            if use_location(cx).pathname.as_ref() == "/settings/profile" {
+              Redirect::to("security").replace(true).into_any_element()
+            } else {
+              div().child(Outlet::new()).into_any_element()
+            }
+          })
+          .children(vec![
+            Route::new().path("profile").element(|_, _| "profile"),
+            Route::new().path("security").element(|_, _| "security"),
+          ]),
+      )
+    }
+  }
+
+  #[gpui::test]
+  async fn test_layout_relative_redirect_resolves_against_the_layout_route(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+      use_navigate(cx).push("/settings/profile");
+    });
+
+    let (_, visual) = cx.add_window_view(|_, _| LayoutRelativeRedirectView);
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+    });
+
+    let pathname = visual.update(|_, cx| RouterState::global(cx).location.pathname.clone());
+    assert_eq!(pathname.as_ref(), "/settings/security");
+
+    // Rendering the target again must not redirect a second time.
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+    });
+    let pathname = visual.update(|_, cx| RouterState::global(cx).location.pathname.clone());
+    assert_eq!(pathname.as_ref(), "/settings/security");
   }
 }
