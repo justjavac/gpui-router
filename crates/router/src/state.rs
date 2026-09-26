@@ -16,6 +16,20 @@ pub enum Relative {
   Path,
 }
 
+/// How the current location was reached, mirroring React Router's
+/// `useNavigationType`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum NavigationType {
+  /// The initial location, or a move through the history with `back` or
+  /// `forward`. React Router reports `"POP"` for all three.
+  #[default]
+  Pop,
+  /// A new entry was pushed.
+  Push,
+  /// The current entry was replaced.
+  Replace,
+}
+
 thread_local! {
   /// The routes whose elements are being laid out, outermost first, so that a
   /// relative target inside a route's element resolves against that route.
@@ -306,6 +320,9 @@ pub struct RouterState {
   /// Index of [`RouterState::location`] inside
   /// [`RouterState::history`].
   pub history_index: usize,
+  /// How the current location was reached, like React Router's
+  /// `useNavigationType`.
+  pub navigation_type: NavigationType,
 }
 
 impl Global for RouterState {}
@@ -324,6 +341,7 @@ impl RouterState {
       current_route: None,
       history: vec![location],
       history_index: 0,
+      navigation_type: NavigationType::Pop,
     };
     cx.set_global::<RouterState>(state);
   }
@@ -340,6 +358,7 @@ impl RouterState {
   /// Navigates to a new location, keeping the previous one in the history.
   pub(crate) fn push_location(&mut self, mut location: Location) {
     location.key = next_location_key();
+    self.navigation_type = NavigationType::Push;
     self.history.truncate(self.history_index + 1);
     self.history.push(location.clone());
 
@@ -369,6 +388,7 @@ impl RouterState {
   /// Navigates to a location, replacing the current history entry.
   pub(crate) fn replace_location(&mut self, mut location: Location) {
     location.key = next_location_key();
+    self.navigation_type = NavigationType::Replace;
 
     match self.history.get_mut(self.history_index) {
       Some(current) => *current = location.clone(),
@@ -395,6 +415,7 @@ impl RouterState {
 
     self.history_index -= 1;
     let location = self.history[self.history_index].clone();
+    self.navigation_type = NavigationType::Pop;
     self.set_location(location);
     true
   }
@@ -407,6 +428,7 @@ impl RouterState {
 
     self.history_index += 1;
     let location = self.history[self.history_index].clone();
+    self.navigation_type = NavigationType::Pop;
     self.set_location(location);
     true
   }
@@ -439,7 +461,9 @@ impl RouterState {
 
 #[cfg(test)]
 mod tests {
-  use super::{Location, MAX_HISTORY, Relative, RouterState, normalize_pathname, resolve_target, with_render_route};
+  use super::{
+    Location, MAX_HISTORY, NavigationType, Relative, RouterState, normalize_pathname, resolve_target, with_render_route,
+  };
   use gpui::SharedString;
 
   impl RouterState {
@@ -454,6 +478,7 @@ mod tests {
         current_route: None,
         history: vec![Location::default()],
         history_index: 0,
+        navigation_type: NavigationType::Pop,
       }
     }
   }
@@ -504,6 +529,7 @@ mod tests {
       current_route: None,
       history: vec![Location::default()],
       history_index: 0,
+      navigation_type: NavigationType::Pop,
     };
 
     state.with_path("dashboard/".into());
@@ -533,6 +559,7 @@ mod tests {
       current_route: None,
       history: vec![Location::default()],
       history_index: 0,
+      navigation_type: NavigationType::Pop,
     };
 
     for page in 0..MAX_HISTORY + 4 {
@@ -583,6 +610,7 @@ mod tests {
       current_route: None,
       history: vec![Location::default()],
       history_index: 0,
+      navigation_type: NavigationType::Pop,
     };
 
     state.push_location(Location::parse("/search?q=rust"));
