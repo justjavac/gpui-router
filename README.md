@@ -39,6 +39,10 @@ The API follows React Router, so most of the knowledge transfers directly:
 | `<Navigate to replace />` | `Redirect::to("/login").replace(true)` |
 | `loader`, `action`, `errorElement` | not planned yet; the plan covers a design pass first |
 
+`docs/react-router-alignment.md` keeps the full register of what is aligned,
+what is adapted to Rust and GPUI, and what is still open (`<Link replace>`,
+`useNavigationType`, `useBlocker`, per-window state, and the data APIs).
+
 Two deliberate differences: `Route::layout(...)` plus `#[derive(IntoLayout)]` has
 no React Router equivalent (it is an optional, explicit alternative to an
 element with an `Outlet`), and GPUI has no context lookup, so `useOutletContext`
@@ -161,7 +165,7 @@ Hooks read the router state from any `Render` implementation or event handler:
 
 | Hook | Returns |
 | --- | --- |
-| `use_location(cx)` | the current `Location` (a normalized pathname) |
+| `use_location(cx)` | the current `Location`: normalized `pathname`, `search`, `hash`, `key` and `state` |
 | `use_pattern(cx)` | the route pattern that matched, for example `/users/:id` |
 | `use_params(cx)` | the dynamic parameters of the current match |
 | `use_matches(cx)` | the matched routes from the root to the leaf, for breadcrumbs |
@@ -188,7 +192,9 @@ a splat. The `{id}` and `{*splat}` spellings of the matcher keep working, so
 existing routes do not have to change. A splat also matches its parent path,
 the way React Router's `*` does: `path("*")` covers `/` and `files/*` covers
 `/files` with an empty `params["*"]`, while a real route such as an index route
-still wins that path.
+still wins that path. Optional segments (`docs/:page?`) are not supported yet:
+they panic with the route path instead of compiling to a parameter that would
+silently never match `/docs`; use an index route plus a route with the segment.
 
 Give a route children and render an `Outlet` where the matched child should
 appear:
