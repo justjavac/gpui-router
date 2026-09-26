@@ -29,6 +29,7 @@ The API follows React Router, so most of the knowledge transfers directly:
 | `path="*"` | the same, and it matches `/` like React Router |
 | `to="about"`, `to="../sibling"` | the same, resolved against the route that renders the link (`relative="path"` is available as `Relative::Path`) |
 | `<Link to>` | `Link::new().to(...)` |
+| `<Link to replace />` | `Link::new().to(...).replace(true)` |
 | `<NavLink to>` | `NavLink::new().to(...).active(...).end(...)` |
 | `useParams()`, `useLocation()` | `use_params(cx)`, `use_location(cx)` |
 | `useMatches()`, `useMatch(pattern)` | `use_matches(cx)`, `use_match(cx, "users/:id")` |
