@@ -14,6 +14,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `Link::replace(true)` and `NavLink::replace(true)`, React Router's `replace` prop: the click replaces the current history entry instead of adding one ([#39], [#43]).
 - `location.state`: `Navigator::state`, `Link::state`, `NavLink::state` and `Redirect::state` attach string pairs to a navigation, and `use_location(cx).state` reads them, including after `back` and `forward`. It is a sorted map rather than a `HashMap`, because that keeps the `Ord`/`PartialOrd` implementations `Location` already had.
 - `gpui_router::prelude`, which exports the router types, hooks and `init` in one import (`use gpui_router::prelude::*;`).
 - Relative targets, like React Router: `Link::new().to("about")` inside a route resolves against that route, `to=".."` climbs one route, and `Link::relative(Relative::Path)` (also on `NavLink` and `Navigator`) resolves against the current pathname instead. `Redirect` and `use_match` follow the same rule.
@@ -80,6 +81,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 [#36]: https://github.com/justjavac/gpui-router/pull/36
 [#37]: https://github.com/justjavac/gpui-router/issues/37
 [#38]: https://github.com/justjavac/gpui-router/pull/38
+[#39]: https://github.com/justjavac/gpui-router/issues/39
+[#43]: https://github.com/justjavac/gpui-router/pull/43
 
 [Unreleased]: https://github.com/justjavac/gpui-router/compare/v0.5.0...HEAD
 [0.5.0]: https://github.com/justjavac/gpui-router/compare/v0.4.1...v0.5.0

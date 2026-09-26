@@ -25,6 +25,7 @@ pub struct Link {
   element_id: Option<ElementId>,
   relative: Relative,
   state: Option<std::collections::BTreeMap<SharedString, SharedString>>,
+  replace: bool,
 }
 
 impl Default for Link {
@@ -36,6 +37,7 @@ impl Default for Link {
       element_id: None,
       relative: Relative::Route,
       state: None,
+      replace: false,
     }
   }
 }
@@ -103,6 +105,13 @@ impl Link {
     self
   }
 
+  /// Replaces the current history entry instead of adding one, like React
+  /// Router's `replace` prop on `Link`.
+  pub fn replace(mut self, replace: bool) -> Self {
+    self.replace = replace;
+    self
+  }
+
   /// Applies the click handler and the element id, and returns the element an
   /// application renders.
   fn link_element(mut self, cx: &App) -> Stateful<Div> {
@@ -115,6 +124,7 @@ impl Link {
     let to = resolve_target(RouterState::require(cx), self.to.as_ref(), self.relative);
     let element_id = self.element_id.take().unwrap_or_else(|| ElementId::from(to.clone()));
     let location_state = self.state.take();
+    let replace = self.replace;
 
     self
       .base
@@ -124,7 +134,11 @@ impl Link {
         if let Some(state) = location_state.clone() {
           navigate.state(state);
         }
-        navigate.push(to.clone());
+        if replace {
+          navigate.replace(to.clone());
+        } else {
+          navigate.push(to.clone());
+        }
         window.refresh();
       })
       .children(self.children)
@@ -205,6 +219,13 @@ impl NavLink {
     V: Into<SharedString>,
   {
     self.link = self.link.state(state);
+    self
+  }
+
+  /// Replaces the current history entry instead of adding one, like React
+  /// Router's `replace` prop on `NavLink`.
+  pub fn replace(mut self, replace: bool) -> Self {
+    self.link = self.link.replace(replace);
     self
   }
 

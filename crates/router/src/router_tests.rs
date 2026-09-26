@@ -1,7 +1,7 @@
 #[cfg(test)]
 pub mod tests {
   use crate::{
-    Layout, NavLink, Outlet, Redirect, Route, RouterState, Routes, normalize_pathname, use_location, use_navigate,
+    Layout, Link, NavLink, Outlet, Redirect, Route, RouterState, Routes, normalize_pathname, use_location, use_navigate,
   };
   use gpui::prelude::*;
   use gpui::{AnyElement, App, Modifiers, TestAppContext, VisualTestContext, Window, div};
@@ -558,5 +558,85 @@ pub mod tests {
     });
     let pathname = visual.update(|_, cx| RouterState::global(cx).location.pathname.clone());
     assert_eq!(pathname.as_ref(), "/settings/security");
+  }
+
+  /// A page with one pushing and one replacing link to the same target.
+  struct ReplaceLinkView;
+
+  impl Render for ReplaceLinkView {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+      Routes::new()
+        .basename("/")
+        .child(Route::new().path("home").element(|_, _| {
+          div()
+            .child(
+              Link::new()
+                .to("/settings")
+                .element_id("push-link")
+                .debug_selector(|| "push-link".to_string())
+                .child("Push"),
+            )
+            .child(
+              Link::new()
+                .to("/settings")
+                .replace(true)
+                .element_id("replace-link")
+                .debug_selector(|| "replace-link".to_string())
+                .child("Replace"),
+            )
+        }))
+        .child(Route::new().path("settings").element(|_, _| "settings"))
+    }
+  }
+
+  /// Draws the tree, puts the pointer on the element, and clicks it.
+  fn click_element(visual: &mut VisualTestContext, selector: &'static str) {
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+    });
+    let bounds = visual.debug_bounds(selector).expect("the element rendered");
+    visual.simulate_mouse_move(bounds.center(), None, Modifiers::default());
+    // Hit testing uses the hitboxes of the last frame.
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+    });
+    visual.simulate_click(bounds.center(), Modifiers::default());
+    visual.run_until_parked();
+  }
+
+  #[gpui::test]
+  async fn test_link_replace_reuses_the_current_history_entry(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+      use_navigate(cx).push("/home");
+    });
+
+    let (_, visual) = cx.add_window_view(|_, _| ReplaceLinkView);
+    click_element(visual, "replace-link");
+
+    let (pathname, history) = visual.update(|_, cx| {
+      let state = RouterState::global(cx);
+      (state.location.pathname.clone(), state.history.len())
+    });
+    assert_eq!(pathname.as_ref(), "/settings");
+    assert_eq!(history, 2, "replace reuses the entry that `/home` created");
+  }
+
+  #[gpui::test]
+  async fn test_link_push_adds_a_history_entry(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+      use_navigate(cx).push("/home");
+    });
+
+    let (_, visual) = cx.add_window_view(|_, _| ReplaceLinkView);
+    click_element(visual, "push-link");
+
+    let (pathname, history) = visual.update(|_, cx| {
+      let state = RouterState::global(cx);
+      (state.location.pathname.clone(), state.history.len())
+    });
+    assert_eq!(pathname.as_ref(), "/settings");
+    assert_eq!(history, 3, "push adds an entry next to `/home`");
   }
 }

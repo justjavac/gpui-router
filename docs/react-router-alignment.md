@@ -67,7 +67,7 @@ carry the current status.
 | Pathless layout route | works, undocumented; a route with children and no element/layout renders nothing | renders the matched child (transparent group) | 1 |
 | Missing `init(cx)`, duplicate paths | silent in release, bare `matchit` panic | panic with context | 1 |
 | `<Link>` | only `NavLink` | `Link` for plain links | 2 |
-| `<Link replace>` | none | `replace(true)` on `Link`/`NavLink` | 4 |
+| `<Link replace>` | none | `replace(true)` on `Link`/`NavLink` | 4 ✅ ([#43]) |
 | `navigate(-1)`, `{ replace: true }` | no history | `Navigator::{push, replace, back, forward}` | 2 |
 | `navigate()` re-renders | state changes, nothing repaints | navigation schedules a frame | 4 |
 | `useNavigationType()` | none | `Pop`/`Push`/`Replace` for the current entry | 4 |
@@ -169,10 +169,9 @@ complete either way.
 Ordered by how much each item changes what an application has to know, not by
 effort. Nothing here is committed to a release yet.
 
-1. ⬜ Make navigation schedule a frame ([#41]) and give `Link`/`NavLink` a
-   `replace(true)` ([#39]). Both are small, and both are sharp edges a React
-   Router user hits on the first day: navigation that does not repaint, and a
-   link that cannot replace.
+1. ⬜ Make navigation schedule a frame ([#41]): navigation that does not
+   repaint is a sharp edge a React Router user hits on the first day. ✅
+   `Link`/`NavLink` gained `replace(true)` ([#39], [#43]).
 2. ⬜ Settle the state model: per-window state, plus a snapshot of
    `matches`/`params` per `Routes` tree so a nested tree cannot rewrite what an
    outer tree recorded ([#40]). Do this before the data APIs, which would store
@@ -197,7 +196,8 @@ are the work in [phase 4](#phase-4--remaining-alignment-open).
 | React Router | `gpui-router` | State |
 | --- | --- | --- |
 | `<Routes>`, `<Route>`, `<Outlet>`, `<Link>`, `<NavLink>`, `useParams`, `useLocation`, `useMatches`, `useMatch`, `useSearchParams` | the same names (snake case) | aligned |
-| `<Link replace>`, `useNavigationType`, `useBlocker`, `useBeforeUnload` | missing | open ([#39], phase 4) |
+| `<Link replace>` | `Link::new().replace(true)`, `NavLink::replace(true)` | aligned ([#43]) |
+| `useNavigationType`, `useBlocker`, `useBeforeUnload` | missing | open (phase 4) |
 | `navigate()` repaints the screen | `Navigator` mutates state, the caller refreshes the window | open ([#41]) |
 | `useOutletContext`, `lazy`, `<ScrollRestoration>` | missing | deliberate: GPUI has no context lookup, and the other two are web-only |
 | `<Navigate>` | `Redirect` | deliberate for now: a v5 name; `Navigate` is open work |
@@ -240,6 +240,7 @@ Rules for behaviour that only exists inside a frame:
 | `navigate(to, { replace })`, `navigate(-1)`, forward entries | `test_navigator_history` |
 | `location.search`, `hash` and `state` | `test_use_search_params`, `test_navigator_location_state` |
 | `<Navigate replace>` does not navigate twice | `test_layout_relative_redirect_resolves_against_the_layout_route` (draws the target twice) |
+| `<Link replace>` reuses the history entry while a plain link adds one | `test_link_replace_reuses_the_current_history_entry`, `test_link_push_adds_a_history_entry` |
 | optional segments are not silently mis-parsed | `test_react_router_optional_segments_are_rejected`, `test_matcher_optional_segments_are_rejected` |
 
 ## Risks
@@ -272,3 +273,4 @@ Rules for behaviour that only exists inside a frame:
 [#39]: https://github.com/justjavac/gpui-router/issues/39
 [#40]: https://github.com/justjavac/gpui-router/issues/40
 [#41]: https://github.com/justjavac/gpui-router/issues/41
+[#43]: https://github.com/justjavac/gpui-router/pull/43
