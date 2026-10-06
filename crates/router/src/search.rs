@@ -117,14 +117,18 @@ impl std::fmt::Display for SearchParams {
 /// Percent-encodes everything outside the unreserved set. Spaces become `%20`,
 /// which every URL parser accepts.
 fn encode(value: &str) -> String {
-  let mut encoded = String::with_capacity(value.len());
+  const HEX: &[u8; 16] = b"0123456789ABCDEF";
+  let bytes = value.as_bytes();
+  let mut encoded = String::with_capacity(bytes.len() * 3);
 
-  for byte in value.as_bytes() {
+  for &byte in bytes {
     match byte {
-      b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-        encoded.push(*byte as char);
+      b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => encoded.push(byte as char),
+      _ => {
+        encoded.push('%');
+        encoded.push(HEX[(byte >> 4) as usize] as char);
+        encoded.push(HEX[(byte & 0xf) as usize] as char);
       }
-      _ => encoded.push_str(&format!("%{byte:02X}")),
     }
   }
 
