@@ -149,6 +149,19 @@ pub(crate) fn normalize_pathname(pathname: impl AsRef<str>) -> SharedString {
     format!("/{pathname}")
   };
 
+  // Collapse consecutive separators: `/a//b` and `//about` normalize the same
+  // way React Router treats them, so a matching route sees one path.
+  let mut consecutive = 0;
+  normalized.retain(|ch| {
+    if ch == '/' {
+      consecutive += 1;
+      consecutive == 1
+    } else {
+      consecutive = 0;
+      true
+    }
+  });
+
   while normalized.len() > 1 && normalized.ends_with('/') {
     normalized.pop();
   }
@@ -185,12 +198,13 @@ pub(crate) fn normalize_shared_pathname(pathname: &SharedString) -> SharedString
   }
 }
 
-/// A normalized pathname starts with a single `/`, has no trailing `/` (except
-/// the root) and carries no surrounding whitespace.
+/// A normalized pathname starts with a single `/`, keeps no consecutive `/`,
+/// has no trailing `/` (except the root) and carries no surrounding whitespace.
 fn is_normalized_pathname(pathname: &str) -> bool {
   pathname.starts_with('/')
     && pathname.trim() == pathname
-    && (pathname.len() == 1 || (!pathname.ends_with('/') && !pathname.ends_with(' ')))
+    && !pathname.contains("//")
+    && (pathname.len() == 1 || !pathname.ends_with('/'))
 }
 
 /// A Location represents a URL-like location in the router.
@@ -495,6 +509,29 @@ mod tests {
   fn test_normalize_pathname_preserves_root() {
     assert_eq!(normalize_pathname("/"), "/");
     assert_eq!(normalize_pathname("////"), "/");
+  }
+
+  #[test]
+  fn test_normalize_pathname_collapses_consecutive_separators() {
+    assert_eq!(normalize_pathname("//about"), "/about");
+    assert_eq!(normalize_pathname("/about//team"), "/about/team");
+    assert_eq!(normalize_pathname("about///"), "/about");
+    assert_eq!(normalize_pathname("/about//team//"), "/about/team");
+  }
+
+  #[test]
+  fn test_normalize_shared_pathname_normalizes_consecutive_separators() {
+    use super::normalize_shared_pathname;
+    use gpui::SharedString;
+
+    assert_eq!(
+      normalize_shared_pathname(&SharedString::from("/about//team")).as_ref(),
+      "/about/team"
+    );
+    assert_eq!(
+      normalize_shared_pathname(&SharedString::from("//about")).as_ref(),
+      "/about"
+    );
   }
 
   #[test]
