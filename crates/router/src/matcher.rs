@@ -103,11 +103,18 @@ pub(crate) fn match_normalized<Node: RouteNode>(
   let matcher = cached_matcher(routes, basename);
   let matched = matcher.at(pathname.as_ref()).ok()?;
   let target = &matched.value;
-  let mut params: HashMap<SharedString, SharedString> = matched
-    .params
-    .iter()
-    .map(|(key, value)| (key.to_owned().into(), value.to_owned().into()))
-    .collect();
+  // The most common match carries no parameters; `HashMap::new` allocates
+  // nothing, so the rendering path stays allocation-free until a parameter
+  // actually appears.
+  let mut params: HashMap<SharedString, SharedString> = if matched.params.is_empty() {
+    HashMap::new()
+  } else {
+    matched
+      .params
+      .iter()
+      .map(|(key, value)| (key.to_owned().into(), value.to_owned().into()))
+      .collect()
+  };
 
   if let Some(splat) = target.splat.as_ref() {
     if target.empty_splat {

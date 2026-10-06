@@ -231,8 +231,9 @@ impl Route {
     window: &mut Window,
     cx: &mut App,
   ) -> Option<AnyElement> {
-    // The location pathname is normalized, so matching borrows it as is.
-    let pathname = RouterState::require(cx).location.pathname.clone();
+    // The location pathname is normalized, so matching borrows it as is
+    // and no per-frame clone is needed: the borrow ends before `render`.
+    let pathname = &RouterState::require(cx).location.pathname;
     let matched = matcher::match_normalized(routes, basename, pathname.as_ref())?;
     let route = routes.remove(matched.index);
 
