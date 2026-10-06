@@ -82,6 +82,15 @@ references. `font-kit`, `macos-blade` and `runtime_shaders` only exist on the
 crate's default features and `runtime_shaders` belongs to the platform crate
 that `gpui-kit` selects for you.
 
+On macOS, GPUI 0.2.x compiles its Metal shaders at build time with `xcrun metal`.
+Machines with only the CommandLineTools installed (no full Xcode) need
+
+```toml
+gpui-router = { version = "0.4", features = ["runtime_shaders"] }
+```
+
+which stitches the shaders for runtime compilation instead.
+
 `gpui-kit` applications only need `gpui-kit` and `gpui-router`: derive macros
 expand through `gpui_router::__private::gpui`, so a crate named `gpui` is not
 required. The bundled examples bootstrap GPUI directly and therefore build on
@@ -171,7 +180,7 @@ Hooks read the router state from any `Render` implementation or event handler:
 | `use_pattern(cx)` | the route pattern that matched, for example `/users/:id` |
 | `use_params(cx)` | the dynamic parameters of the current match |
 | `use_matches(cx)` | the matched routes from the root to the leaf, for breadcrumbs |
-| `use_match(cx, pattern)` | whether a pattern matches the current location |
+| `use_match(cx, pattern)` | whether the `pathname` matches the current location; query strings are not part of the match |
 | `use_search_params(cx)` | the query string, parsed into key/value pairs |
 | `use_set_search_params(cx)` | a setter that navigates with new query parameters |
 | `use_navigate(cx)` | a `Navigator` with `push`, `replace`, `back` and `forward` |
@@ -187,6 +196,12 @@ fn user_page(cx: &App) -> impl IntoElement {
   div().child(format!("{id} matched {pattern:?}"))
 }
 ```
+
+The hooks read a snapshot of the router state: it is refreshed while the
+`Routes` tree renders, so values seen in an event handler that navigates are
+from the previous frame until the next one renders. That is also why a click
+handler typically ends in `window.refresh()` after navigating with
+`use_navigate`.
 
 ### Nested routes
 
