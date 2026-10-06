@@ -31,6 +31,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Removed
 
 - `PathMatch`, `RouterState::path_match` and `Location::state` were public but never populated: `path_match` was only ever set to `None`, and `Location::state` held a `matchit::Params` value the router never wrote. `RouterState::matched_pattern` and `use_pattern` replace them. This is a breaking change, so the next release is 0.6.0.
+- `Router` and `router()` did nothing but render their children in a `div`; the entry point is `Routes`, so the no-op wrapper is gone.
 
 ## [0.5.0] - 2026-09-24
 
