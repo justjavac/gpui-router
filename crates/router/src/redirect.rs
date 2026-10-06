@@ -61,7 +61,11 @@ impl RenderOnce for Redirect {
     // ("security" inside `/settings`) lands on the same pathname the guard
     // compares against. Comparing the raw string would miss that and navigate
     // on every render once the redirect was at its target.
-    let target = Location::parse(resolve_target(RouterState::require(cx), self.to.as_ref(), Relative::Route));
+    let target = Location::parse(resolve_target(
+      RouterState::require(cx),
+      self.to.as_ref(),
+      Relative::Route,
+    ));
     let already_there = {
       let current = &RouterState::require(cx).location;
       current.pathname == target.pathname && current.search == target.search && current.hash == target.hash

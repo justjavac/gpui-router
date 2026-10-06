@@ -596,10 +596,16 @@ pub mod tests {
     // renders it, and lands on `/settings/profile`.
     let (pathname, before) = visual.update(|_, cx| {
       let state = RouterState::global(cx);
-      (state.location.pathname.clone(), (state.history.len(), state.navigation_type))
+      (
+        state.location.pathname.clone(),
+        (state.history.len(), state.navigation_type),
+      )
     });
     assert_eq!(pathname.as_ref(), "/settings/profile");
-    assert_eq!(before.0, 3, "the redirect pushed `/settings/profile` onto `/`, `/settings`");
+    assert_eq!(
+      before.0, 3,
+      "the redirect pushed `/settings/profile` onto `/`, `/settings`"
+    );
 
     // The element still renders the redirect, but the current location already
     // is its target, so the re-render must not navigate.
@@ -608,7 +614,10 @@ pub mod tests {
     });
     let (pathname, after) = visual.update(|_, cx| {
       let state = RouterState::global(cx);
-      (state.location.pathname.clone(), (state.history.len(), state.navigation_type))
+      (
+        state.location.pathname.clone(),
+        (state.history.len(), state.navigation_type),
+      )
     });
     assert_eq!(pathname.as_ref(), "/settings/profile");
     assert_eq!(after, before, "a redirect at its target does not navigate again");
