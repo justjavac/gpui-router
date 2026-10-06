@@ -1,7 +1,8 @@
 #[cfg(test)]
 pub mod tests {
   use crate::{
-    Layout, Link, NavLink, Outlet, Redirect, Route, RouterState, Routes, normalize_pathname, use_location, use_navigate,
+    Layout, Link, NavLink, NavigationType, Outlet, Redirect, Route, RouterState, Routes, normalize_pathname,
+    use_location, use_navigate,
   };
   use gpui::prelude::*;
   use gpui::{AnyElement, App, Modifiers, TestAppContext, VisualTestContext, Window, div};
@@ -558,6 +559,68 @@ pub mod tests {
     });
     let pathname = visual.update(|_, cx| RouterState::global(cx).location.pathname.clone());
     assert_eq!(pathname.as_ref(), "/settings/security");
+  }
+
+  /// A layout that always redirects relatively. Once the redirect lands, a
+  /// re-render of the same element must not navigate again: the guard compares
+  /// the resolved target, not the raw `to` string.
+  struct RelativeRedirectGuardView;
+
+  impl Render for RelativeRedirectGuardView {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+      Routes::new().basename("/").child(
+        Route::new()
+          .path("settings")
+          .element(|_, _| Redirect::to("profile").into_any_element())
+          .children(vec![
+            Route::new().path("profile").element(|_, _| "profile"),
+            Route::new().path("security").element(|_, _| "security"),
+          ]),
+      )
+    }
+  }
+
+  #[gpui::test]
+  async fn test_relative_redirect_at_its_target_does_not_navigate_again(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+      use_navigate(cx).push("/settings");
+    });
+
+    let (_, visual) = cx.add_window_view(|_, _| RelativeRedirectGuardView);
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+    });
+
+    // The redirect resolved `profile` against `/settings`, the route that
+    // renders it, and lands on `/settings/profile`.
+    let (pathname, before) = visual.update(|_, cx| {
+      let state = RouterState::global(cx);
+      (
+        state.location.pathname.clone(),
+        (state.history.len(), state.navigation_type),
+      )
+    });
+    assert_eq!(pathname.as_ref(), "/settings/profile");
+    assert_eq!(
+      before.0, 3,
+      "the redirect pushed `/settings/profile` onto `/`, `/settings`"
+    );
+
+    // The element still renders the redirect, but the current location already
+    // is its target, so the re-render must not navigate.
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+    });
+    let (pathname, after) = visual.update(|_, cx| {
+      let state = RouterState::global(cx);
+      (
+        state.location.pathname.clone(),
+        (state.history.len(), state.navigation_type),
+      )
+    });
+    assert_eq!(pathname.as_ref(), "/settings/profile");
+    assert_eq!(after, before, "a redirect at its target does not navigate again");
   }
 
   /// A page with one pushing and one replacing link to the same target.

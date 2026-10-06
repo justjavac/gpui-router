@@ -1,4 +1,5 @@
-use crate::{Location, RouterState, use_navigate};
+use crate::state::resolve_target;
+use crate::{Location, Relative, RouterState, use_navigate};
 use gpui::*;
 
 /// Navigates to another location while it renders, like React Router's
@@ -56,7 +57,15 @@ impl Redirect {
 
 impl RenderOnce for Redirect {
   fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-    let target = Location::parse(self.to.as_ref());
+    // The target resolves the way the navigation below does, so a relative `to`
+    // ("security" inside `/settings`) lands on the same pathname the guard
+    // compares against. Comparing the raw string would miss that and navigate
+    // on every render once the redirect was at its target.
+    let target = Location::parse(resolve_target(
+      RouterState::require(cx),
+      self.to.as_ref(),
+      Relative::Route,
+    ));
     let already_there = {
       let current = &RouterState::require(cx).location;
       current.pathname == target.pathname && current.search == target.search && current.hash == target.hash
