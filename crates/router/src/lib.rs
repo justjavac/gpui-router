@@ -21,7 +21,6 @@ mod nav_link;
 mod outlet;
 mod redirect;
 mod route;
-mod router;
 // The GPUI test harness needs the backend's `test-support`: the 0.2 dev-dependency
 // enables it by default, other backends enable it through the `test-support` feature.
 #[cfg(all(test, any(feature = "gpui", feature = "test-support")))]
@@ -37,7 +36,6 @@ pub use nav_link::*;
 pub use outlet::*;
 pub use redirect::*;
 pub use route::*;
-pub use router::*;
 pub use routes::*;
 pub use search::*;
 pub use state::*;
@@ -69,9 +67,9 @@ pub fn init(cx: &mut gpui::App) {
 pub mod prelude {
   pub use crate::{
     IntoLayout, Layout, Link, Location, Match, NavLink, NavigationType, Navigator, Outlet, Redirect, Relative, Route,
-    Router, RouterState, Routes, SearchParams, SearchParamsSetter, init, link, nav_link, outlet, route, router,
-    use_location, use_match, use_matches, use_navigate, use_navigation_type, use_params, use_pattern,
-    use_search_params, use_set_search_params,
+    RouterState, Routes, SearchParams, SearchParamsSetter, init, link, nav_link, outlet, route, use_location,
+    use_match, use_matches, use_navigate, use_navigation_type, use_params, use_pattern, use_search_params,
+    use_set_search_params,
   };
 }
 
@@ -86,7 +84,6 @@ mod prelude_tests {
     let _nav_link = NavLink::new().to("/about").end(true);
     let _redirect = Redirect::to("/about").replace(true);
     let _params = SearchParams::default().set("q", "1");
-    let _router = Router::new();
     let _outlet = Outlet::new();
     let _navigation_type = NavigationType::Pop;
 

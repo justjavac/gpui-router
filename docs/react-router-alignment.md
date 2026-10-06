@@ -34,7 +34,7 @@ document, not a commitment ([data-apis.md](./data-apis.md)).
    `Outlet` are the way to nest, as in React Router; `Route::layout(...)` and
    `#[derive(IntoLayout)]` remain as an optional alternative for chrome that
    needs its own type. Everything else the crate has and React Router does not
-   (`init(cx)`, `Router`, `Navigator`, `Relative`, `SearchParamsSetter`) is
+   (`init(cx)`, `Navigator`, `Relative`, `SearchParamsSetter`) is
    listed in the divergence register with the reason it exists.
 4. **React Router path syntax works out of the box** — `:id` and `*` — because
    `path="users/:id"` silently matching a literal path today is the single most
