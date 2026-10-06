@@ -156,7 +156,7 @@ impl Route {
   /// [`Outlet`](crate::Outlet) created by this element, so an outlet has to be
   /// built inside the element closure; children render only through it. Use
   /// [`Route::layout`] instead when the surrounding chrome needs its own type.
-  /// Panics in debug builds if a layout is already set.
+  /// Panics if a layout is already set.
   ///
   /// # Examples
   /// ```
@@ -168,7 +168,7 @@ impl Route {
     F: Fn(&mut Window, &mut App) -> E + 'static,
     E: IntoElement,
   {
-    if cfg!(debug_assertions) && self.layout.is_some() {
+    if self.layout.is_some() {
       panic!("Route element and layout cannot be set at the same time");
     }
 
@@ -179,7 +179,7 @@ impl Route {
   /// The layout to use when the route matches.
   /// Panics if an element is already set.
   pub fn layout(mut self, layout: impl Layout + 'static) -> Self {
-    if cfg!(debug_assertions) && self.element.is_some() {
+    if self.element.is_some() {
       panic!("Route element and layout cannot be set at the same time");
     }
 
@@ -190,7 +190,7 @@ impl Route {
   /// Sets the route as an index route.
   /// Panics if a path is already set.
   pub fn index(self) -> Self {
-    if cfg!(debug_assertions) && self.path.is_some() {
+    if self.path.is_some() {
       panic!("Route index and path cannot be set at the same time");
     }
     self.path("")
@@ -282,6 +282,17 @@ impl RenderOnce for Route {
 #[cfg(test)]
 mod tests {
   use super::Route;
+  use crate::Layout;
+  use gpui::{AnyElement, App, Empty, IntoElement, Window};
+
+  struct StubLayout;
+
+  impl Layout for StubLayout {
+    fn outlet(&mut self, _element: AnyElement) {}
+    fn render_layout(self: Box<Self>, _window: &mut Window, _cx: &mut App) -> AnyElement {
+      Empty {}.into_any_element()
+    }
+  }
 
   #[test]
   fn test_element_route_keeps_children() {
@@ -299,5 +310,23 @@ mod tests {
       .child(Route::new().path("about").element(|_, _| "about"));
 
     assert_eq!(route.routes.len(), 2);
+  }
+
+  #[test]
+  #[should_panic(expected = "element and layout cannot be set at the same time")]
+  fn test_layout_then_element_panics_in_every_build() {
+    let _ = Route::new().layout(StubLayout).element(|_, _| "page");
+  }
+
+  #[test]
+  #[should_panic(expected = "element and layout cannot be set at the same time")]
+  fn test_element_then_layout_panics_in_every_build() {
+    let _ = Route::new().element(|_, _| "page").layout(StubLayout);
+  }
+
+  #[test]
+  #[should_panic(expected = "index and path cannot be set at the same time")]
+  fn test_index_after_path_panics_in_every_build() {
+    let _ = Route::new().path("about").index();
   }
 }
