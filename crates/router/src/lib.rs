@@ -67,8 +67,9 @@ pub fn init(cx: &mut gpui::App) {
 pub mod prelude {
   pub use crate::{
     IntoLayout, Layout, Link, Location, Match, NavLink, NavigationType, Navigator, Outlet, Redirect, Relative, Route,
-    RouterState, Routes, SearchParams, SearchParamsSetter, init, link, nav_link, outlet, route, use_location, use_match,
-    use_matches, use_navigate, use_navigation_type, use_params, use_pattern, use_search_params, use_set_search_params,
+    RouterState, Routes, SearchParams, SearchParamsSetter, init, link, nav_link, outlet, route, use_location,
+    use_match, use_matches, use_navigate, use_navigation_type, use_params, use_pattern, use_search_params,
+    use_set_search_params,
   };
 }
 
