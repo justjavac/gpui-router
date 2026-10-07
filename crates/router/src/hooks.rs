@@ -88,8 +88,13 @@ pub fn use_navigate(cx: &mut App) -> Navigator<'_> {
   }
 }
 
-/// Returns the current [Location](crate::Location).
-/// This can be useful if you'd like to perform some side effect whenever it changes.
+/// Returns the current [Location](crate::Location), for reads while
+/// rendering. This can be useful if you'd like to perform some side effect
+/// whenever it changes.
+///
+/// The location is a snapshot that `Routes` refreshes while it renders: an
+/// event handler that navigates still sees the previous location until the
+/// next frame renders.
 pub fn use_location(cx: &App) -> &Location {
   &RouterState::require(cx).location
 }

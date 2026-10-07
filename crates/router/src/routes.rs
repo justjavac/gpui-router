@@ -18,6 +18,17 @@ impl Default for Routes {
 }
 
 impl Routes {
+  /// Creates an empty route tree that matches under `/`.
+  ///
+  /// Child routes are added with [`Routes::child`] or [`Routes::children`], and
+  /// the whole tree renders once it is used as a `Routes` element, normally as
+  /// the root of a window's view tree or the `div` it renders inside.
+  ///
+  /// ```
+  /// use gpui_router::prelude::*;
+  ///
+  /// let routes = Routes::new().child(Route::new().path("home").element(|_, _| "Home"));
+  /// ```
   pub fn new() -> Self {
     Self {
       basename: SharedString::from("/"),
@@ -25,19 +36,26 @@ impl Routes {
     }
   }
 
-  /// Sets the base path for all child `Route`s.
+  /// Sets the base path for all child `Route`s. All child paths then resolve
+  /// under it, so `Routes::new().basename("/app")` with a child `path("home")`
+  /// matches `/app/home`. The basename is normalized like every route path.
   pub fn basename(mut self, basename: impl Into<SharedString>) -> Self {
     self.basename = normalize_pathname(basename.into());
     self
   }
 
-  /// Adds a `Route` as a child to the `Routes`.
+  /// Adds one [`Route`] as a child of the tree, mirroring a React Router
+  /// `<Routes>` wrapping a single `<Route>`.
+  ///
+  /// Callers usually chain this: `Routes::new().child(Route::new()...).child(...)`.
   pub fn child(mut self, child: Route) -> Self {
     self.routes.push(child);
     self
   }
 
-  /// Adds multiple `Route`s as children to the `Routes`.
+  /// Adds several [`Route`]s as children, mirroring a React Router `<Routes>`
+  /// wrapping a list of `<Route>`s. Equivalent to calling [`Routes::child`]
+  /// once per route.
   pub fn children(mut self, children: impl IntoIterator<Item = Route>) -> Self {
     for child in children.into_iter() {
       self = self.child(child);

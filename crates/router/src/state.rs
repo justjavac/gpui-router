@@ -342,8 +342,11 @@ pub struct RouterState {
 impl Global for RouterState {}
 
 impl RouterState {
-  /// Initializes the RouterState within the GPUI application context.
-  /// This function sets up the initial state of the router.
+  /// Registers the router state in the GPUI application context.
+  ///
+  /// The public entry point is [`crate::init`], which delegates here.
+  /// Panics if called twice on the same context, which would overwrite state
+  /// and leave history dangling.
   pub fn init(cx: &mut App) {
     let location = Location::default();
     let state = Self {
@@ -447,12 +450,16 @@ impl RouterState {
     true
   }
 
-  /// Retrieves an immutable reference to the global RouterState from the GPUI application context.
+  /// Returns the global router state, panicking when it was never
+  /// initialized: the panic message names the fix (call
+  /// [`init`](crate::init)). Prefer the `use_*` hooks, which read the same
+  /// state and exist for exactly this pattern.
   pub fn global(cx: &App) -> &Self {
     cx.global::<Self>()
   }
 
-  /// Retrieves a mutable reference to the global RouterState from the GPUI application context.
+  /// Mutable counterpart of [`RouterState::global`]. Used internally by the
+  /// `Navigator`; applications should use [`use_navigate`](crate::use_navigate).
   pub fn global_mut(cx: &mut App) -> &mut Self {
     cx.global_mut::<Self>()
   }

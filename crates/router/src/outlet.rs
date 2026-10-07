@@ -71,6 +71,13 @@ impl Default for Outlet {
 }
 
 impl Outlet {
+  /// Creates the outlet element, rendering the matched child of the route
+  /// whose element is currently being built.
+  ///
+  /// The outlet has to be created inside the element or layout closure so the
+  /// router knows which subtree it belongs to. Two outlets built in the same
+  /// element produce the same child element; outside of a route element, an
+  /// outlet renders as an empty element.
   pub fn new() -> Self {
     Default::default()
   }
