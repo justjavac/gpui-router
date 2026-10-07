@@ -6,11 +6,16 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-07
+
 ### Fixed
 
 - A route with children and neither an element nor a layout rendered nothing. It now renders the matched child directly, which is React Router's pathless layout route.
 - A relative `to` inside a layout route resolved against the deepest match instead of the route that rendered it, so a `NavLink::new().to("security")` in a `/settings` layout went to `/settings/profile/security` while a child route was on screen. `Link`, `NavLink` and `Redirect` now resolve against the route that produced them, like React Router's `relative="route"` ([#35], [#36]).
 - React Router's optional segment syntax (`docs/:page?`, and the matcher spelling `docs/{page?}`) compiled to a parameter named `page?`, which matched `/docs/intro` but never `/docs`. Unsupported optional segments now panic with the route path instead ([#37], [#38]).
+- A `Redirect` compared its `to` string against the current location literally, so a relative target (e.g. `Redirect::to("profile")` inside `/settings`) looked different from the resolved path every render and navigated again. The guard now compares the resolved target, so a redirect that lands on its own destination renders stably ([#46]).
+- Pathnames with consecutive slashes (`/about//team`) normalized to a path with a single separator instead of being stored verbatim and matching nothing ([#48]).
+- Route builder conflicts (`path` + `index`, or `element` + `layout` on one route) only panicked in debug builds; they now panic identically in every build instead of silently choosing one ([#47]).
 
 ### Added
 
@@ -30,7 +35,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Removed
 
-- `PathMatch`, `RouterState::path_match` and `Location::state` were public but never populated: `path_match` was only ever set to `None`, and `Location::state` held a `matchit::Params` value the router never wrote. `RouterState::matched_pattern` and `use_pattern` replace them. This is a breaking change, so the next release is 0.6.0.
+- `PathMatch` and `RouterState::path_match` were public but never populated: `path_match` was only ever set to `None`. `RouterState::matched_pattern` and `use_pattern` replace them. This is a breaking change, so the next release is 0.6.0.
 - `Router` and `router()` did nothing but render their children in a `div`; the entry point is `Routes`, so the no-op wrapper is gone.
 
 ## [0.5.0] - 2026-09-24
@@ -87,8 +92,12 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 [#43]: https://github.com/justjavac/gpui-router/pull/43
 [#44]: https://github.com/justjavac/gpui-router/issues/44
 [#45]: https://github.com/justjavac/gpui-router/pull/45
+[#46]: https://github.com/justjavac/gpui-router/pull/46
+[#47]: https://github.com/justjavac/gpui-router/pull/47
+[#48]: https://github.com/justjavac/gpui-router/pull/48
 
-[Unreleased]: https://github.com/justjavac/gpui-router/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/justjavac/gpui-router/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/justjavac/gpui-router/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/justjavac/gpui-router/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/justjavac/gpui-router/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/justjavac/gpui-router/compare/v0.3.0...v0.4.0

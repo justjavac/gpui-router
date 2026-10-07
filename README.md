@@ -61,10 +61,10 @@ becomes passing an entity instead.
 
 ```toml
 # Plain GPUI application
-gpui-router = "0.4"
+gpui-router = "0.6"
 
 # gpui-kit application, which re-exports GPUI as `gpui_kit::*`
-gpui-router = { version = "0.4", default-features = false, features = ["gpui-pre"] }
+gpui-router = { version = "0.6", default-features = false, features = ["gpui-pre"] }
 ```
 
 Both backends expose the same router API; only the GPUI types behind it change.
@@ -86,7 +86,7 @@ On macOS, GPUI 0.2.x compiles its Metal shaders at build time with `xcrun metal`
 Machines with only the CommandLineTools installed (no full Xcode) need
 
 ```toml
-gpui-router = { version = "0.4", features = ["runtime_shaders"] }
+gpui-router = { version = "0.6", features = ["runtime_shaders"] }
 ```
 
 which stitches the shaders for runtime compilation instead.
