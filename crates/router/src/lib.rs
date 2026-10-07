@@ -55,6 +55,15 @@ pub mod __private {
 }
 
 /// Initializes the router system within a GPUI application context.
+///
+/// Call this once per `App`, before any window opens or any `use_*` hook or
+/// `Routes` element runs — typically right after `App::new()` and before the
+/// first `open_window`. Panics if called twice on the same context.
+///
+/// ```ignore
+/// // Called with the `App` being set up, before any window opens.
+/// gpui_router::init(cx);
+/// ```
 pub fn init(cx: &mut gpui::App) {
   RouterState::init(cx);
 }

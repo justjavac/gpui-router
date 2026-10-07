@@ -134,6 +134,17 @@ impl Display for Route {
 }
 
 impl Route {
+  /// Creates an empty route, like React Router's `<Route>` with no props.
+  ///
+  /// A route only matches once it is given a [`path`](Route::path) or an
+  /// [`index`](Route::index), and only renders once it is given an
+  /// [`element`](Route::element), a [`layout`](Route::layout), or both.
+  ///
+  /// ```
+  /// use gpui_router::prelude::*;
+  ///
+  /// Route::new().path("home").element(|_, _| "Home");
+  /// ```
   pub fn new() -> Self {
     Self::default()
   }
@@ -160,8 +171,9 @@ impl Route {
   ///
   /// # Examples
   /// ```
-  /// Route::new().path("home").element(|| HomeView::render())
-  /// Route::new().path("about").element(|| div().child("About"))
+  /// use gpui_router::prelude::*;
+  ///
+  /// Route::new().path("home").element(|_, _| "Home");
   /// ```
   pub fn element<F, E>(mut self, element_fn: F) -> Self
   where

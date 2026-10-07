@@ -53,10 +53,12 @@ impl SearchParams {
     self.get(name).is_some()
   }
 
+  /// Whether the query string is empty, i.e. there are no pairs.
   pub fn is_empty(&self) -> bool {
     self.entries.is_empty()
   }
 
+  /// The number of pairs, like `URLSearchParams.size`.
   pub fn len(&self) -> usize {
     self.entries.len()
   }
