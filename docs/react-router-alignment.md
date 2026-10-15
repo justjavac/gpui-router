@@ -108,8 +108,8 @@ NavLink::new()
   .end(true)
   .child("About")
 
-// Navigation.
-let mut nav = use_navigate(cx);
+// Navigation. The navigator refreshes `window` after changing the location.
+let mut nav = use_navigate(window, cx);
 nav.push("/about");
 nav.replace("/login");
 nav.back();
@@ -125,7 +125,7 @@ use_matches(cx)
 use_match(cx, "users/:id")
 use_pattern(cx)
 use_search_params(cx)
-use_set_search_params(cx)
+use_set_search_params(window, cx)
 ```
 
 ## Phases
@@ -171,11 +171,15 @@ effort. Nothing here is committed to a release yet.
 
 1. ⬜ Make navigation schedule a frame ([#41]): navigation that does not
    repaint is a sharp edge a React Router user hits on the first day. ✅
-   `Link`/`NavLink` gained `replace(true)` ([#39], [#43]).
+   `Link`/`NavLink` gained `replace(true)` ([#39], [#43]); `use_navigate` and
+   `use_set_search_params` take the `window` they navigate in and refresh it
+   themselves, so a click handler no longer calls `window.refresh()` by hand.
 2. ⬜ Settle the state model: per-window state, plus a snapshot of
    `matches`/`params` per `Routes` tree so a nested tree cannot rewrite what an
-   outer tree recorded ([#40]). Do this before the data APIs, which would store
-   loader data in the same state.
+   outer tree recorded ([#40]). ✅ 0.7.0 keeps one state per window, created
+   lazily when its first `Routes` tree renders, and brackets each tree's render
+   with a frame that a nested tree saves and restores. Do this before the data
+   APIs, which would store loader data in the same state.
 3. ⬜ `useBlocker` / `useBeforeUnload` (for unsaved changes). A desktop app
    needs the guard more than a web app does. ✅ `useNavigationType()` landed for
    transitions ([#44], [#45]).
@@ -199,13 +203,13 @@ are the work in [phase 4](#phase-4--remaining-alignment-open).
 | `<Link replace>` | `Link::new().replace(true)`, `NavLink::replace(true)` | aligned ([#43]) |
 | `useNavigationType` | `use_navigation_type(cx)`, a `NavigationType` | aligned ([#45]) |
 | `useBlocker`, `useBeforeUnload` | missing | open (phase 4) |
-| `navigate()` repaints the screen | `Navigator` mutates state, the caller refreshes the window | open ([#41]) |
+| `navigate()` repaints the screen | `Navigator` refreshes the `window` it was created from | aligned ([#41]) |
 | `useOutletContext`, `lazy`, `<ScrollRestoration>` | missing | deliberate: GPUI has no context lookup, and the other two are web-only |
 | `<Navigate>` | `Redirect` | deliberate for now: a v5 name; `Navigate` is open work |
 | `navigate(to, { relative, state, replace })`, `navigate(-1)` | `Navigator` with `relative`, `state`, `push`, `replace`, `back`, `forward` | adapted: no options object in Rust |
 | `location.state` (any value) | `BTreeMap<SharedString, SharedString>` | adapted: values are strings |
 | `useSearchParams()` (mutable) | `SearchParams` + `SearchParamsSetter` | adapted |
-| one router per browser tab | one `RouterState` per application | open ([#40]) |
+| one router per browser tab | one `RouterState` per window | aligned ([#40]) |
 | route matching is case-insensitive by default | matching is case-sensitive, `NavLink` matching is not | inconsistent: phase 4 |
 | `loader`, `errorElement`, `useNavigation`, `useLoaderData` | design only | open, not committed ([data-apis.md](./data-apis.md)) |
 | `action`, `<Form>`, `useSubmit`, `useFetcher` | none | deliberate: mutations belong to entities and commands |

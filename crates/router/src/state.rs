@@ -1,5 +1,5 @@
 use crate::SearchParams;
-use gpui::{App, Global, SharedString};
+use gpui::{App, Global, SharedString, WindowId};
 use hashbrown::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -75,6 +75,124 @@ pub(crate) fn with_render_route<R>(route: usize, build: impl FnOnce() -> R) -> R
   let _scope = push_render_route(route);
 
   build()
+}
+
+/// The window whose tree is currently being rendered. `Routes` sets this
+/// before it lays out its subtree, so the read hooks can resolve against the
+/// state of the window they belong to without taking a `Window` parameter.
+pub struct CurrentWindowId(pub WindowId);
+
+impl Global for CurrentWindowId {}
+
+/// The current window, panicking when a hook runs outside of a render, where
+/// there is no well-defined window to read from.
+fn current_window_id(cx: &App) -> WindowId {
+  cx.try_global::<CurrentWindowId>()
+    .map(|current| current.0)
+    .unwrap_or_else(|| {
+      panic!(
+        "a router hook was called outside of a `Routes` render: hooks read the state of the window \
+         that is rendering, so they only work while a tree is being laid out"
+      )
+    })
+}
+
+/// The route-rendering fields a `Routes` tree replaces while it renders:
+/// the match chain and the parameters of the current window.
+///
+/// [`RouterRegistry::enter_tree_scope`] saves the previous values and clears
+/// them, so the tree's `apply_match` calls fill its own frame;
+/// [`RouterRegistry::leave_tree_scope`] restores them, so a nested `Routes`
+/// tree (like the settings router in `sub_router.rs`) cannot overwrite what
+/// an outer tree recorded for the breadcrumbs and links around it.
+#[derive(Clone, Default)]
+pub(crate) struct RenderFrame {
+  matches: Vec<Match>,
+  params: HashMap<SharedString, SharedString>,
+  matched_pattern: Option<SharedString>,
+  current_route: Option<usize>,
+}
+
+/// The router state of every window, keyed by the `WindowId` of the window
+/// that renders each tree.
+///
+/// A window's state is created lazily the first time a `Routes` tree renders
+/// in it, so two windows route independently: their `location`, `history` and
+/// match chain never fight over a single application-wide state.
+pub struct RouterRegistry {
+  pub(crate) windows: HashMap<WindowId, RouterState>,
+  /// Snapshots of the route-rendering fields of the trees currently being
+  /// rendered, outermost first.
+  render_frames: Vec<RenderFrame>,
+}
+
+impl Global for RouterRegistry {}
+
+impl RouterRegistry {
+  fn new() -> Self {
+    Self {
+      windows: HashMap::new(),
+      render_frames: Vec::new(),
+    }
+  }
+
+  /// Creates the router state of `window_id` from `basename`, the first time a
+  /// `Routes` tree renders in that window.
+  ///
+  /// `Routes` calls this from its render method, so every window that shows a
+  /// routed tree gets its own state before the tree lays out and reads it.
+  pub(crate) fn ensure_window(&mut self, window_id: WindowId, basename: &SharedString) {
+    if !self.windows.contains_key(&window_id) {
+      self.windows.insert(window_id, RouterState::at(basename));
+    }
+  }
+
+  /// Enters the render of the `Routes` tree in `window_id`, whose state
+  /// [`RouterRegistry::ensure_window`] created earlier in the same render.
+  ///
+  /// The route-rendering fields of the window are pushed onto the frame stack
+  /// and cleared, so this tree records its own match chain; the tree's render
+  /// must call [`RouterRegistry::leave_tree_scope`] when it is done.
+  pub(crate) fn enter_tree_scope(&mut self, window_id: WindowId) {
+    let state = self
+      .windows
+      .get_mut(&window_id)
+      .expect("enter_tree_scope for a window that never rendered a `Routes` tree");
+
+    self.render_frames.push(RenderFrame {
+      matches: std::mem::take(&mut state.matches),
+      params: std::mem::take(&mut state.params),
+      matched_pattern: state.matched_pattern.take(),
+      current_route: state.current_route.take(),
+    });
+  }
+
+  /// Leaves the render of the tree that entered it.
+  ///
+  /// A nested tree restores the frame its own render replaced, so the outer
+  /// tree keeps the chain it recorded for the breadcrumbs and links around it.
+  /// The outermost tree of the window's frame keeps the chain it recorded, so
+  /// the state a frame leaves behind is what event handlers and the next frame
+  /// read.
+  pub(crate) fn leave_tree_scope(&mut self, window_id: WindowId) {
+    let frame = self
+      .render_frames
+      .pop()
+      .expect("leave_tree_scope without a matching enter_tree_scope");
+    let state = self
+      .windows
+      .get_mut(&window_id)
+      .expect("leave_tree_scope for a window without router state");
+
+    // The frame stack is empty once the outermost tree leaves, whose frame
+    // only exists to bracket a nested tree's render.
+    if !self.render_frames.is_empty() {
+      state.matches = frame.matches;
+      state.params = frame.params;
+      state.matched_pattern = frame.matched_pattern;
+      state.current_route = frame.current_route;
+    }
+  }
 }
 
 /// Resolves a navigation target the way React Router resolves `to`: absolute
@@ -339,28 +457,35 @@ pub struct RouterState {
   pub navigation_type: NavigationType,
 }
 
-impl Global for RouterState {}
-
 impl RouterState {
-  /// Registers the router state in the GPUI application context.
+  /// Registers the router registry in the GPUI application context.
   ///
   /// The public entry point is [`crate::init`], which delegates here.
-  /// Panics if called twice on the same context, which would overwrite state
-  /// and leave history dangling.
+  /// Panics if called twice on the same context, which would overwrite the
+  /// registry and leave every window without state.
   pub fn init(cx: &mut App) {
-    let location = Location::default();
-    let state = Self {
+    if cx.has_global::<RouterRegistry>() {
+      panic!("the router is already initialized: call `gpui_router::init(cx)` only once");
+    }
+
+    cx.set_global(RouterRegistry::new());
+  }
+
+  /// Creates a state whose initial location is `basename`, which is what a
+  /// window's state starts at the first time a `Routes` tree renders in it.
+  fn at(basename: &SharedString) -> Self {
+    let location = Location::parse(basename.as_ref());
+    Self {
       location: location.clone(),
       matched_pattern: None,
       params: HashMap::new(),
-      search_params: SearchParams::default(),
+      search_params: SearchParams::parse(location.search.as_ref()),
       matches: Vec::new(),
       current_route: None,
       history: vec![location],
       history_index: 0,
       navigation_type: NavigationType::Pop,
-    };
-    cx.set_global::<RouterState>(state);
+    }
   }
 
   /// Sets the current pathname in the router state, replacing the current
@@ -450,33 +575,42 @@ impl RouterState {
     true
   }
 
-  /// Returns the global router state, panicking when it was never
-  /// initialized: the panic message names the fix (call
-  /// [`init`](crate::init)). Prefer the `use_*` hooks, which read the same
-  /// state and exist for exactly this pattern.
+  /// Returns the router state of the window being rendered, panicking with the
+  /// fix when an application never called [`init`](crate::init). Prefer the
+  /// `use_*` hooks, which read the same state and exist for exactly this
+  /// pattern.
   pub fn global(cx: &App) -> &Self {
-    cx.global::<Self>()
+    let window_id = current_window_id(cx);
+    cx.try_global::<RouterRegistry>()
+      .unwrap_or_else(|| panic!("{NOT_INITIALIZED}"))
+      .windows
+      .get(&window_id)
+      .unwrap_or_else(|| panic!("the router has no state for the window being rendered"))
   }
 
   /// Mutable counterpart of [`RouterState::global`]. Used internally by the
   /// `Navigator`; applications should use [`use_navigate`](crate::use_navigate).
   pub fn global_mut(cx: &mut App) -> &mut Self {
-    cx.global_mut::<Self>()
+    let window_id = current_window_id(cx);
+    if !cx.has_global::<RouterRegistry>() {
+      panic!("{NOT_INITIALIZED}");
+    }
+
+    cx.global_mut::<RouterRegistry>()
+      .windows
+      .get_mut(&window_id)
+      .unwrap_or_else(|| panic!("the router has no state for the window being rendered"))
   }
 
-  /// Returns the router state, panicking with the fix when an application never
-  /// called [`init`](crate::init).
+  /// Returns the router state of the window being rendered, panicking with the
+  /// fix when an application never called [`init`](crate::init).
   pub(crate) fn require(cx: &App) -> &Self {
-    cx.try_global::<Self>().unwrap_or_else(|| panic!("{NOT_INITIALIZED}"))
+    Self::global(cx)
   }
 
   /// Mutable counterpart of [`RouterState::require`].
   pub(crate) fn require_mut(cx: &mut App) -> &mut Self {
-    if !cx.has_global::<Self>() {
-      panic!("{NOT_INITIALIZED}");
-    }
-
-    cx.global_mut::<Self>()
+    Self::global_mut(cx)
   }
 }
 

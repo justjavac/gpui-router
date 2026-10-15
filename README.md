@@ -33,17 +33,17 @@ The API follows React Router, so most of the knowledge transfers directly:
 | `<NavLink to>` | `NavLink::new().to(...).active(...).end(...)` |
 | `useParams()`, `useLocation()` | `use_params(cx)`, `use_location(cx)` |
 | `useMatches()`, `useMatch(pattern)` | `use_matches(cx)`, `use_match(cx, "users/:id")` |
-| `useNavigate()` | `use_navigate(cx)`, a `Navigator` with `push` / `replace` / `back` / `forward` |
+| `useNavigate()` | `use_navigate(window, cx)`, a `Navigator` with `push` / `replace` / `back` / `forward` |
 | `useNavigationType()` | `use_navigation_type(cx)`, a `NavigationType` |
 | `navigate(-1)`, `navigate(1)` | `nav.back()`, `nav.forward()` |
-| `useSearchParams()` | `use_search_params(cx)` to read, `use_set_search_params(cx)` to write |
+| `useSearchParams()` | `use_search_params(cx)` to read, `use_set_search_params(window, cx)` to write |
 | `navigate(to, { state })`, `location.state` | `nav.state([("returnTo", "/x")]).push(to)` and `use_location(cx).state` |
 | `<Navigate to replace />` | `Redirect::to("/login").replace(true)` |
 | `loader`, `action`, `errorElement` | not planned yet; the plan covers a design pass first |
 
 `docs/react-router-alignment.md` keeps the full register of what is aligned,
 what is adapted to Rust and GPUI, and what is still open (`<Link replace>`,
-`useNavigationType`, `useBlocker`, per-window state, and the data APIs).
+`useNavigationType`, `useBlocker`, and the data APIs).
 
 Two deliberate differences: `Route::layout(...)` plus `#[derive(IntoLayout)]` has
 no React Router equivalent (it is an optional, explicit alternative to an
@@ -61,10 +61,10 @@ becomes passing an entity instead.
 
 ```toml
 # Plain GPUI application
-gpui-router = "0.6"
+gpui-router = "0.7"
 
 # gpui-kit application, which re-exports GPUI as `gpui_kit::*`
-gpui-router = { version = "0.6", default-features = false, features = ["gpui-pre"] }
+gpui-router = { version = "0.7", default-features = false, features = ["gpui-pre"] }
 ```
 
 Both backends expose the same router API; only the GPUI types behind it change.
@@ -86,7 +86,7 @@ On macOS, GPUI 0.2.x compiles its Metal shaders at build time with `xcrun metal`
 Machines with only the CommandLineTools installed (no full Xcode) need
 
 ```toml
-gpui-router = { version = "0.6", features = ["runtime_shaders"] }
+gpui-router = { version = "0.7", features = ["runtime_shaders"] }
 ```
 
 which stitches the shaders for runtime compilation instead.
@@ -165,10 +165,12 @@ fn main() {
 
 **Note:** The `element()` method now accepts a closure that returns an `IntoElement`. This allows for lazy evaluation of route elements - they are only rendered when the route matches, improving performance when you have many routes.
 
-**Note:** Router state is global. `Routes` stores the matched location in a
-process-wide `RouterState`, so call `gpui_router::init` once during startup and
-render one `Routes` tree per window. Rendering without that call panics with the
-line to add, instead of silently rendering the wrong thing.
+**Note:** Router state is per window. Each window that renders a `Routes` tree
+gets its own state, created lazily the first time the tree renders, so two
+windows can show different routes without fighting over a single application-wide
+state. Call `gpui_router::init` once during startup to register the state map;
+rendering without that call panics with the line to add, instead of silently
+rendering the wrong thing.
 
 ### Reading the location
 
@@ -182,8 +184,8 @@ Hooks read the router state from any `Render` implementation or event handler:
 | `use_matches(cx)` | the matched routes from the root to the leaf, for breadcrumbs |
 | `use_match(cx, pattern)` | whether the `pathname` matches the current location; query strings are not part of the match |
 | `use_search_params(cx)` | the query string, parsed into key/value pairs |
-| `use_set_search_params(cx)` | a setter that navigates with new query parameters |
-| `use_navigate(cx)` | a `Navigator` with `push`, `replace`, `back` and `forward` |
+| `use_set_search_params(window, cx)` | a setter that navigates with new query parameters |
+| `use_navigate(window, cx)` | a `Navigator` with `push`, `replace`, `back` and `forward` |
 | `use_navigation_type(cx)` | how the current location was reached: `NavigationType::{Pop, Push, Replace}` |
 
 ```rust
@@ -199,9 +201,26 @@ fn user_page(cx: &App) -> impl IntoElement {
 
 The hooks read a snapshot of the router state: it is refreshed while the
 `Routes` tree renders, so values seen in an event handler that navigates are
-from the previous frame until the next one renders. That is also why a click
-handler typically ends in `window.refresh()` after navigating with
-`use_navigate`.
+from the previous frame until the next one renders. `use_navigate` and
+`use_set_search_params` take the `window` they navigate in so they can refresh
+it themselves, which is why a click handler no longer needs to call
+`window.refresh()` by hand.
+
+### Async navigation
+
+An event handler has the `&mut Window` the interaction happened in, but an
+async task does not. Navigate from a task by updating the window first, for
+example with the handle an `open_window` call returned:
+
+```rust
+window_handle.update(cx, |_, window, cx| use_navigate(window, cx).push("/about"));
+```
+
+or, when only the location matters and a repaint of every window is acceptable,
+fall back to `App::refresh_windows()` after updating the router state directly.
+The router deliberately does not refresh windows implicitly for async
+navigation, because it cannot know which window a cross-window navigation
+belongs to.
 
 ### Nested routes
 

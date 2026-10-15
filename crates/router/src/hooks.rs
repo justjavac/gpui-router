@@ -1,7 +1,7 @@
 use crate::matcher::matches_pattern;
 use crate::state::resolve_target;
-use crate::{Location, Match, NavigationType, Relative, RouterState, SearchParams};
-use gpui::{App, SharedString};
+use crate::{Location, Match, NavigationType, Relative, RouterRegistry, RouterState, SearchParams};
+use gpui::{App, SharedString, Window};
 use hashbrown::HashMap;
 
 /// Navigates programmatically, mirroring React Router's `navigate`.
@@ -13,11 +13,11 @@ use hashbrown::HashMap;
 /// | `navigate(-1)` | [`Navigator::back`] |
 /// | `navigate(1)` | [`Navigator::forward`] |
 ///
-/// Mutating the router state does not repaint by itself; the built-in links
-/// refresh their window after navigating, and application code should do the
-/// same (`window.refresh()`).
+/// Every navigation refreshes the window it was created from, so the routed
+/// UI repaints without the caller scheduling a frame.
 pub struct Navigator<'a> {
   state: &'a mut RouterState,
+  window: &'a mut Window,
   relative: Relative,
   location_state: Option<std::collections::BTreeMap<SharedString, SharedString>>,
 }
@@ -55,6 +55,7 @@ impl Navigator<'_> {
     let mut location = Location::parse(target);
     location.state = self.location_state.clone();
     self.state.push_location(location);
+    self.window.refresh();
   }
 
   /// Navigates to `to` without adding a history entry, like
@@ -64,25 +65,43 @@ impl Navigator<'_> {
     let mut location = Location::parse(target);
     location.state = self.location_state.clone();
     self.state.replace_location(location);
+    self.window.refresh();
   }
 
   /// Moves to the previous history entry, like `navigate(-1)`. Does nothing at
   /// the oldest entry.
   pub fn back(&mut self) {
-    let _ = self.state.go_back();
+    if self.state.go_back() {
+      self.window.refresh();
+    }
   }
 
   /// Moves to the next history entry, like `navigate(1)`. Does nothing when the
   /// application has not gone back.
   pub fn forward(&mut self) {
-    let _ = self.state.go_forward();
+    if self.state.go_forward() {
+      self.window.refresh();
+    }
   }
 }
 
 /// Returns a [`Navigator`] for programmatic navigation.
-pub fn use_navigate(cx: &mut App) -> Navigator<'_> {
+///
+/// Pass the window the navigation belongs to, so the navigator can refresh it
+/// after changing the location. In an event handler that window is the one the
+/// click happened in; from an async task, update the window first, for example
+/// with `window_handle.update(cx, |_, window, cx| use_navigate(window, cx)...)`.
+pub fn use_navigate<'a>(window: &'a mut Window, cx: &'a mut App) -> Navigator<'a> {
+  let window_id = window.window_handle().window_id();
+  let state = cx
+    .global_mut::<RouterRegistry>()
+    .windows
+    .get_mut(&window_id)
+    .expect("use_navigate for a window that never rendered a `Routes` tree");
+
   Navigator {
-    state: RouterState::require_mut(cx),
+    state,
+    window,
     relative: Relative::Route,
     location_state: None,
   }
@@ -138,13 +157,17 @@ pub fn use_search_params(cx: &App) -> &SearchParams {
 /// Updates the query string of the current location, which is the setter that
 /// React Router's `useSearchParams` returns next to the parameters.
 ///
+/// Every update refreshes the window it was created from, so the routed UI
+/// repaints without the caller scheduling a frame.
+///
 /// ```ignore
 /// let next = use_search_params(cx).clone().set("page", "2");
-/// use_set_search_params(cx).push(next);     // setSearchParams(next)
-/// use_set_search_params(cx).replace(next);  // setSearchParams(next, { replace: true })
+/// use_set_search_params(window, cx).push(next);     // setSearchParams(next)
+/// use_set_search_params(window, cx).replace(next);  // setSearchParams(next, { replace: true })
 /// ```
 pub struct SearchParamsSetter<'a> {
   state: &'a mut RouterState,
+  window: &'a mut Window,
 }
 
 impl SearchParamsSetter<'_> {
@@ -154,6 +177,7 @@ impl SearchParamsSetter<'_> {
     let mut location = self.state.location.clone();
     location.search = params.to_search();
     self.state.push_location(location);
+    self.window.refresh();
   }
 
   /// Replaces the current history entry with the same location and `params`.
@@ -161,14 +185,24 @@ impl SearchParamsSetter<'_> {
     let mut location = self.state.location.clone();
     location.search = params.to_search();
     self.state.replace_location(location);
+    self.window.refresh();
   }
 }
 
 /// Returns a setter for the query string of the current location.
-pub fn use_set_search_params(cx: &mut App) -> SearchParamsSetter<'_> {
-  SearchParamsSetter {
-    state: RouterState::require_mut(cx),
-  }
+///
+/// Pass the window the navigation belongs to, so the setter can refresh it after
+/// changing the query string. In an event handler that window is the one the
+/// interaction happened in; from an async task, update the window first.
+pub fn use_set_search_params<'a>(window: &'a mut Window, cx: &'a mut App) -> SearchParamsSetter<'a> {
+  let window_id = window.window_handle().window_id();
+  let state = cx
+    .global_mut::<RouterRegistry>()
+    .windows
+    .get_mut(&window_id)
+    .expect("use_set_search_params for a window that never rendered a `Routes` tree");
+
+  SearchParamsSetter { state, window }
 }
 
 /// Matches `pattern` against the current location, like React Router's
@@ -190,106 +224,126 @@ pub mod tests {
     use_match, use_matches, use_navigate, use_navigation_type, use_pattern, use_search_params, use_set_search_params,
   };
   use crate::{NavigationType, Route, RouterState, Routes, normalize_pathname};
-  use gpui::{SharedString, TestAppContext};
+  use gpui::{Context, IntoElement, Render, SharedString, TestAppContext, VisualTestContext, Window};
+
+  /// A window that renders an empty `Routes` tree, which is all the Navigator
+  /// tests need: it gives them a window whose router state exists.
+  struct TestRoutes;
+
+  impl Render for TestRoutes {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+      Routes::new()
+    }
+  }
+
+  /// Opens a routed window and draws it once, so its router state exists and
+  /// the rendering window is bound for the test body's hooks.
+  fn open_window(cx: &mut TestAppContext) -> &mut VisualTestContext {
+    cx.update(|cx| crate::init(cx));
+    let (_, visual) = cx.add_window_view(|_, _| TestRoutes);
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+    });
+    visual
+  }
 
   #[gpui::test]
   async fn test_use_navigate(cx: &mut TestAppContext) {
-    cx.update(|cx| {
-      crate::init(cx);
-      assert_eq!(cx.global::<RouterState>().location.pathname, "/");
+    let visual = open_window(cx);
+    visual.update(|window, cx| {
+      assert_eq!(RouterState::global(cx).location.pathname, "/");
 
       {
-        let mut navigate = use_navigate(cx);
+        let mut navigate = use_navigate(window, cx);
         navigate.push("/about");
       }
-      assert_eq!(cx.global::<RouterState>().location.pathname, "/about");
+      assert_eq!(RouterState::global(cx).location.pathname, "/about");
 
       {
-        let mut navigate = use_navigate(cx);
+        let mut navigate = use_navigate(window, cx);
         navigate.push("/dashboard");
       }
-      assert_eq!(cx.global::<RouterState>().location.pathname, "/dashboard");
+      assert_eq!(RouterState::global(cx).location.pathname, "/dashboard");
 
       {
-        let mut navigate = use_navigate(cx);
+        let mut navigate = use_navigate(window, cx);
         navigate.push("/");
       }
-      assert_eq!(cx.global::<RouterState>().location.pathname, "/");
+      assert_eq!(RouterState::global(cx).location.pathname, "/");
 
       {
-        let mut navigate = use_navigate(cx);
+        let mut navigate = use_navigate(window, cx);
         navigate.push("/nothing-here");
       }
-      assert_eq!(cx.global::<RouterState>().location.pathname, "/nothing-here");
+      assert_eq!(RouterState::global(cx).location.pathname, "/nothing-here");
 
       {
-        let mut navigate = use_navigate(cx);
+        let mut navigate = use_navigate(window, cx);
         navigate.push("settings/");
       }
-      assert_eq!(cx.global::<RouterState>().location.pathname, "/settings");
+      assert_eq!(RouterState::global(cx).location.pathname, "/settings");
 
       {
-        let mut navigate = use_navigate(cx);
+        let mut navigate = use_navigate(window, cx);
         navigate.push("");
       }
-      assert_eq!(cx.global::<RouterState>().location.pathname, "/");
+      assert_eq!(RouterState::global(cx).location.pathname, "/");
     });
   }
 
   #[gpui::test]
   async fn test_navigator_history(cx: &mut TestAppContext) {
-    cx.update(|cx| {
-      crate::init(cx);
-
-      let location = |cx: &gpui::App| cx.global::<RouterState>().location.pathname.clone();
+    let visual = open_window(cx);
+    visual.update(|window, cx| {
+      let location = |cx: &gpui::App| RouterState::global(cx).location.pathname.clone();
 
       {
-        let mut nav = use_navigate(cx);
+        let mut nav = use_navigate(window, cx);
         nav.push("/about");
         nav.push("/dashboard");
       }
       assert_eq!(location(cx), "/dashboard");
 
       {
-        let mut nav = use_navigate(cx);
+        let mut nav = use_navigate(window, cx);
         nav.back();
       }
       assert_eq!(location(cx), "/about");
 
       {
-        let mut nav = use_navigate(cx);
+        let mut nav = use_navigate(window, cx);
         nav.back();
         nav.back();
       }
       assert_eq!(location(cx), "/", "back stops at the oldest entry");
 
       {
-        let mut nav = use_navigate(cx);
+        let mut nav = use_navigate(window, cx);
         nav.forward();
       }
       assert_eq!(location(cx), "/about");
 
       {
-        let mut nav = use_navigate(cx);
+        let mut nav = use_navigate(window, cx);
         nav.push("/settings");
         nav.back();
       }
       assert_eq!(location(cx), "/about", "pushing drops the forward entries");
 
       {
-        let mut nav = use_navigate(cx);
+        let mut nav = use_navigate(window, cx);
         nav.forward();
       }
       assert_eq!(location(cx), "/settings");
 
       {
-        let mut nav = use_navigate(cx);
+        let mut nav = use_navigate(window, cx);
         nav.replace("/login");
       }
       assert_eq!(location(cx), "/login");
 
       {
-        let mut nav = use_navigate(cx);
+        let mut nav = use_navigate(window, cx);
         nav.back();
       }
       assert_eq!(location(cx), "/about", "replace keeps the history length");
@@ -298,33 +352,32 @@ pub mod tests {
 
   #[gpui::test]
   async fn test_use_navigation_type(cx: &mut TestAppContext) {
-    cx.update(|cx| {
-      crate::init(cx);
+    let visual = open_window(cx);
+    visual.update(|window, cx| {
       assert_eq!(
         use_navigation_type(cx),
         NavigationType::Pop,
         "the initial location is a pop"
       );
 
-      use_navigate(cx).push("/about");
+      use_navigate(window, cx).push("/about");
       assert_eq!(use_navigation_type(cx), NavigationType::Push);
 
-      use_navigate(cx).replace("/dashboard");
+      use_navigate(window, cx).replace("/dashboard");
       assert_eq!(use_navigation_type(cx), NavigationType::Replace);
 
-      use_navigate(cx).back();
+      use_navigate(window, cx).back();
       assert_eq!(use_navigation_type(cx), NavigationType::Pop);
 
-      use_navigate(cx).forward();
+      use_navigate(window, cx).forward();
       assert_eq!(use_navigation_type(cx), NavigationType::Pop);
     });
   }
 
   #[gpui::test]
   async fn test_use_pattern(cx: &mut TestAppContext) {
-    cx.update(|cx| {
-      crate::init(cx);
-
+    let visual = open_window(cx);
+    visual.update(|_window, cx| {
       let routes = Routes::new()
         .basename("/")
         .child(Route::new().path("users/{id}").element(|_, _| "user"));
@@ -335,23 +388,22 @@ pub mod tests {
       Routes::apply_match(cx, normalize_pathname("/users/42"), Some(matched));
       assert_eq!(use_pattern(cx).map(|pattern| pattern.as_ref()), Some("/users/{id}"));
       assert_eq!(
-        cx.global::<RouterState>().params.get("id").map(|value| value.as_ref()),
+        RouterState::global(cx).params.get("id").map(|value| value.as_ref()),
         Some("42")
       );
 
       Routes::apply_match(cx, normalize_pathname("/missing"), None);
       assert_eq!(use_pattern(cx), None);
-      assert!(cx.global::<RouterState>().params.is_empty());
+      assert!(RouterState::global(cx).params.is_empty());
     });
   }
 
   #[gpui::test]
   async fn test_use_match(cx: &mut TestAppContext) {
-    cx.update(|cx| {
-      crate::init(cx);
-
+    let visual = open_window(cx);
+    visual.update(|window, cx| {
       {
-        let mut nav = use_navigate(cx);
+        let mut nav = use_navigate(window, cx);
         nav.push("/users/42");
       }
 
@@ -367,9 +419,9 @@ pub mod tests {
 
   #[gpui::test]
   async fn test_use_matches_returns_the_recorded_chain(cx: &mut TestAppContext) {
-    cx.update(|cx| {
-      crate::init(cx);
-
+    let visual = open_window(cx);
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
       {
         let state = RouterState::require_mut(cx);
         state.record_match(&SharedString::from("/"));
@@ -384,13 +436,12 @@ pub mod tests {
 
   #[gpui::test]
   async fn test_use_search_params(cx: &mut TestAppContext) {
-    cx.update(|cx| {
-      crate::init(cx);
-
+    let visual = open_window(cx);
+    visual.update(|window, cx| {
       assert!(use_search_params(cx).is_empty());
 
       {
-        let mut nav = use_navigate(cx);
+        let mut nav = use_navigate(window, cx);
         nav.push("/search?q=rust&tag=gpui#results");
       }
 
@@ -408,17 +459,16 @@ pub mod tests {
 
   #[gpui::test]
   async fn test_use_set_search_params(cx: &mut TestAppContext) {
-    cx.update(|cx| {
-      crate::init(cx);
-
+    let visual = open_window(cx);
+    visual.update(|window, cx| {
       {
-        let mut nav = use_navigate(cx);
+        let mut nav = use_navigate(window, cx);
         nav.push("/search?q=rust");
       }
 
       let next = use_search_params(cx).clone().set("page", "2");
       {
-        let mut set = use_set_search_params(cx);
+        let mut set = use_set_search_params(window, cx);
         set.push(next);
       }
       assert_eq!(super::use_location(cx).search, "?q=rust&page=2");
@@ -427,7 +477,7 @@ pub mod tests {
       let history_length = RouterState::require(cx).history.len();
       let next = use_search_params(cx).clone().delete("page");
       {
-        let mut set = use_set_search_params(cx);
+        let mut set = use_set_search_params(window, cx);
         set.replace(next);
       }
       assert_eq!(super::use_location(cx).search, "?q=rust");
@@ -441,9 +491,8 @@ pub mod tests {
 
   #[gpui::test]
   async fn test_navigator_resolves_relative_targets(cx: &mut TestAppContext) {
-    cx.update(|cx| {
-      crate::init(cx);
-
+    let visual = open_window(cx);
+    visual.update(|window, cx| {
       let routes = Routes::new().basename("/").child(
         Route::new()
           .path("settings")
@@ -470,7 +519,7 @@ pub mod tests {
 
       // Route-relative (the default): a child target resolves against the route.
       {
-        let mut nav = use_navigate(cx);
+        let mut nav = use_navigate(window, cx);
         nav.push("billing");
       }
       assert_eq!(super::use_location(cx).pathname, "/settings/profile/billing");
@@ -478,14 +527,14 @@ pub mod tests {
       // `..` climbs one route, not one path segment: the deepest match is
       // `/settings/profile`, so its parent route `/settings` is the target.
       {
-        let mut nav = use_navigate(cx);
+        let mut nav = use_navigate(window, cx);
         nav.push("..");
       }
       assert_eq!(super::use_location(cx).pathname, "/settings");
 
       // Path-relative: `..` climbs one path segment instead.
       {
-        let mut nav = use_navigate(cx);
+        let mut nav = use_navigate(window, cx);
         nav.relative(crate::Relative::Path).push("../billing");
       }
       assert_eq!(super::use_location(cx).pathname, "/billing");
@@ -494,9 +543,8 @@ pub mod tests {
 
   #[gpui::test]
   async fn test_navigator_location_state(cx: &mut TestAppContext) {
-    cx.update(|cx| {
-      crate::init(cx);
-
+    let visual = open_window(cx);
+    visual.update(|window, cx| {
       let return_to = |cx: &gpui::App| {
         super::use_location(cx)
           .state
@@ -506,21 +554,21 @@ pub mod tests {
       };
 
       {
-        let mut nav = use_navigate(cx);
+        let mut nav = use_navigate(window, cx);
         nav.state([("returnTo", "/settings")]).push("/login");
       }
       assert_eq!(return_to(cx).as_deref(), Some("/settings"));
 
       // A navigation without state carries none.
       {
-        let mut nav = use_navigate(cx);
+        let mut nav = use_navigate(window, cx);
         nav.push("/about");
       }
       assert_eq!(return_to(cx), None);
 
       // Going back restores the state of that entry.
       {
-        let mut nav = use_navigate(cx);
+        let mut nav = use_navigate(window, cx);
         nav.back();
       }
       assert_eq!(return_to(cx).as_deref(), Some("/settings"));

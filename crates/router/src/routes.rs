@@ -1,7 +1,6 @@
 use crate::matcher::MatchedRoute;
-use crate::{Route, RouterState, normalize_pathname, normalize_shared_pathname};
-use gpui::prelude::*;
-use gpui::{App, Empty, SharedString, Window};
+use crate::{CurrentWindowId, Route, RouterRegistry, RouterState, normalize_pathname, normalize_shared_pathname};
+use gpui::*;
 use smallvec::SmallVec;
 
 /// Renders a branch of [`Route`](crate::Route) that best matches the current path.
@@ -78,8 +77,9 @@ impl Routes {
     crate::matcher::match_normalized(&self.routes, self.basename.as_ref(), pathname)
   }
 
-  /// Writes the match into the global router state, reusing the existing
-  /// parameter map so a render pass does not allocate one per frame.
+  /// Writes the match into the router state of the window being rendered,
+  /// reusing the existing parameter map so a render pass does not allocate one
+  /// per frame.
   pub(crate) fn apply_match(cx: &mut App, pathname: SharedString, matched: Option<MatchedRoute>) {
     let state = RouterState::require_mut(cx);
     state.location.pathname = pathname;
@@ -96,19 +96,125 @@ impl Routes {
   }
 }
 
+/// Wraps the matched route element of a `Routes` tree, isolating the tree's
+/// render frame while its subtree lays out.
+///
+/// `Routes` is a `RenderOnce` component, so its `render` runs while the parent
+/// tree lays out: that is where the window is bound and its state is created.
+/// The frame that replaces the window's match chain has to bracket the layout
+/// of this tree's own subtree, which is what this element does, the same way
+/// [`RouteScope`](crate::route) brackets a single route's subtree.
+struct RoutesScope {
+  window_id: WindowId,
+  pathname: SharedString,
+  matched: Option<MatchedRoute>,
+  element: AnyElement,
+}
+
+impl Element for RoutesScope {
+  type RequestLayoutState = ();
+  type PrepaintState = Option<FocusHandle>;
+
+  fn id(&self) -> Option<ElementId> {
+    None
+  }
+
+  fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+    None
+  }
+
+  fn request_layout(
+    &mut self,
+    _id: Option<&GlobalElementId>,
+    _inspector_id: Option<&InspectorElementId>,
+    window: &mut Window,
+    cx: &mut App,
+  ) -> (LayoutId, Self::RequestLayoutState) {
+    // Laying the subtree out is what renders the components inside it, so the
+    // frame covers this call: it replaces the window's previous match chain,
+    // lets this tree record its own, then restores the previous chain, so a
+    // nested `Routes` tree cannot overwrite what an outer tree recorded.
+    {
+      let registry = cx.global_mut::<RouterRegistry>();
+      registry.enter_tree_scope(self.window_id);
+    }
+
+    // Matching while the subtree lays out makes the components inside it see
+    // this tree's location, the way the route scope does for one route.
+    Routes::apply_match(cx, self.pathname.clone(), self.matched.clone());
+
+    let id = self.element.request_layout(window, cx);
+
+    {
+      let registry = cx.global_mut::<RouterRegistry>();
+      registry.leave_tree_scope(self.window_id);
+    }
+
+    (id, ())
+  }
+
+  fn prepaint(
+    &mut self,
+    _id: Option<&GlobalElementId>,
+    _inspector_id: Option<&InspectorElementId>,
+    _bounds: Bounds<Pixels>,
+    _request_layout: &mut Self::RequestLayoutState,
+    window: &mut Window,
+    cx: &mut App,
+  ) -> Self::PrepaintState {
+    self.element.prepaint(window, cx)
+  }
+
+  fn paint(
+    &mut self,
+    _id: Option<&GlobalElementId>,
+    _inspector_id: Option<&InspectorElementId>,
+    _bounds: Bounds<Pixels>,
+    _request_layout: &mut Self::RequestLayoutState,
+    _prepaint: &mut Self::PrepaintState,
+    window: &mut Window,
+    cx: &mut App,
+  ) {
+    self.element.paint(window, cx);
+  }
+}
+
+impl IntoElement for RoutesScope {
+  type Element = Self;
+
+  fn into_element(self) -> Self::Element {
+    self
+  }
+}
+
 impl RenderOnce for Routes {
-  fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
+  fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+    let window_id = window.window_handle().window_id();
+    cx.set_global(CurrentWindowId(window_id));
+
+    {
+      let registry = cx.global_mut::<RouterRegistry>();
+      registry.ensure_window(window_id, &self.basename);
+    }
+
     let pathname = normalize_shared_pathname(&RouterState::require(cx).location.pathname);
     let matched = self.match_normalized(pathname.as_ref());
     let index = matched.as_ref().map(|matched| matched.index);
-    Self::apply_match(cx, pathname, matched);
 
-    if let Some(index) = index
+    let element = if let Some(index) = index
       && let Some(route) = self.routes.into_iter().nth(index)
     {
-      return route.basename(self.basename).into_any_element();
-    }
+      route.basename(self.basename).into_any_element()
+    } else {
+      Empty {}.into_any_element()
+    };
 
-    Empty {}.into_any_element()
+    RoutesScope {
+      window_id,
+      pathname,
+      matched,
+      element,
+    }
+    .into_any_element()
   }
 }

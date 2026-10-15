@@ -1,11 +1,22 @@
 #[cfg(test)]
 pub mod tests {
   use crate::{
-    Layout, Link, NavLink, NavigationType, Outlet, Redirect, Route, RouterState, Routes, normalize_pathname,
-    use_location, use_navigate,
+    CurrentWindowId, Layout, Link, NavLink, Outlet, Redirect, Route, RouterRegistry, RouterState, Routes,
+    normalize_pathname, use_location, use_matches, use_navigate,
   };
   use gpui::prelude::*;
-  use gpui::{AnyElement, App, Modifiers, TestAppContext, VisualTestContext, Window, div};
+  use gpui::{AnyElement, App, Modifiers, SharedString, TestAppContext, VisualTestContext, Window, WindowId, div};
+
+  /// Sets up the registry and simulates the beginning of a render: the fake
+  /// window id is bound as the rendering window and its state is created, so
+  /// `apply_match` and the read hooks work in an `App`-only test.
+  fn init_rendering_window(cx: &mut App) {
+    crate::init(cx);
+    let window_id = WindowId::from(1);
+    cx.set_global(CurrentWindowId(window_id));
+    let registry = cx.global_mut::<RouterRegistry>();
+    registry.ensure_window(window_id, &SharedString::from("/"));
+  }
 
   struct Basic {}
 
@@ -39,13 +50,17 @@ pub mod tests {
   async fn test_router(cx: &mut TestAppContext) {
     cx.update(|cx| {
       crate::init(cx);
-      assert_eq!(cx.global::<RouterState>().location.pathname, "/");
     });
     let window = cx.add_window(|_, _cx| Basic {});
 
     {
       let mut cx = VisualTestContext::from_window(window.into(), cx);
       assert!(!cx.simulate_close());
+      // The window's state is created the first time its `Routes` tree renders.
+      cx.update(|window, cx| {
+        let _ = window.draw(cx);
+        assert_eq!(RouterState::global(cx).location.pathname, "/");
+      });
     }
 
     let view = cx.new(|_cx| {
@@ -56,8 +71,7 @@ pub mod tests {
         .child(Route::new().path("dashboard").element(|_, _| "dashboard"))
         .child(Route::new().path("{*not_match}").element(|_, _| "not_match"))
     });
-    view.update(cx, |this, cx| {
-      assert_eq!(cx.global::<RouterState>().location.pathname, "/");
+    view.update(cx, |this, _cx| {
       assert_eq!(this.routes().len(), 4);
     })
   }
@@ -66,6 +80,9 @@ pub mod tests {
   #[should_panic(expected = "call `gpui_router::init(cx)`")]
   async fn test_missing_init_panics_in_every_build(cx: &mut TestAppContext) {
     cx.update(|cx| {
+      // Simulate a render in progress: `Routes` would have bound the window,
+      // so the missing piece is the registry `init` creates.
+      cx.set_global(CurrentWindowId(WindowId::from(1)));
       let _ = RouterState::require(cx);
     });
   }
@@ -117,7 +134,7 @@ pub mod tests {
   #[gpui::test]
   async fn test_static_routes_win_over_dynamic_routes(cx: &mut TestAppContext) {
     cx.update(|cx| {
-      crate::init(cx);
+      init_rendering_window(cx);
 
       let routes = Routes::new()
         .basename("/")
@@ -127,14 +144,14 @@ pub mod tests {
       let matched = routes.match_route("/settings").unwrap();
       assert_eq!(matched.pattern, "/settings");
       Routes::apply_match(cx, normalize_pathname("/settings"), Some(matched));
-      assert!(cx.global::<RouterState>().params.is_empty());
+      assert!(RouterState::global(cx).params.is_empty());
     });
   }
 
   #[gpui::test]
   async fn test_route_params_are_cleared_when_next_match_has_none(cx: &mut TestAppContext) {
     cx.update(|cx| {
-      crate::init(cx);
+      init_rendering_window(cx);
 
       let routes = Routes::new()
         .basename("/")
@@ -144,21 +161,21 @@ pub mod tests {
       let user_match = routes.match_route("/user/42").unwrap();
       Routes::apply_match(cx, normalize_pathname("/user/42"), Some(user_match));
       assert_eq!(
-        cx.global::<RouterState>().params.get("id").map(|value| value.as_ref()),
+        RouterState::global(cx).params.get("id").map(|value| value.as_ref()),
         Some("42")
       );
 
       let about_match = routes.match_route("/about").unwrap();
       Routes::apply_match(cx, normalize_pathname("/about"), Some(about_match));
-      assert!(cx.global::<RouterState>().params.is_empty());
-      assert_eq!(cx.global::<RouterState>().location.pathname, "/about");
+      assert!(RouterState::global(cx).params.is_empty());
+      assert_eq!(RouterState::global(cx).location.pathname, "/about");
     });
   }
 
   #[gpui::test]
   async fn test_apply_match_clears_params_when_route_is_unmatched(cx: &mut TestAppContext) {
     cx.update(|cx| {
-      crate::init(cx);
+      init_rendering_window(cx);
 
       let routes = Routes::new()
         .basename("/")
@@ -167,20 +184,20 @@ pub mod tests {
       let user_match = routes.match_route("/user/42").unwrap();
       Routes::apply_match(cx, normalize_pathname("/user/42"), Some(user_match));
       assert_eq!(
-        cx.global::<RouterState>().params.get("id").map(|value| value.as_ref()),
+        RouterState::global(cx).params.get("id").map(|value| value.as_ref()),
         Some("42")
       );
 
       Routes::apply_match(cx, normalize_pathname("/missing"), None);
-      assert!(cx.global::<RouterState>().params.is_empty());
-      assert_eq!(cx.global::<RouterState>().location.pathname, "/missing");
+      assert!(RouterState::global(cx).params.is_empty());
+      assert_eq!(RouterState::global(cx).location.pathname, "/missing");
     });
   }
 
   #[gpui::test]
   async fn test_pathnames_are_normalized_before_matching(cx: &mut TestAppContext) {
     cx.update(|cx| {
-      crate::init(cx);
+      init_rendering_window(cx);
 
       let routes = Routes::new()
         .basename("/")
@@ -189,7 +206,7 @@ pub mod tests {
       let matched = routes.match_route("/about/").unwrap();
       assert_eq!(matched.pattern, "/about");
       Routes::apply_match(cx, normalize_pathname("/about/"), Some(matched));
-      assert_eq!(cx.global::<RouterState>().location.pathname, "/about");
+      assert_eq!(RouterState::global(cx).location.pathname, "/about");
     });
   }
 
@@ -461,10 +478,15 @@ pub mod tests {
   async fn test_layout_relative_link_resolves_against_the_layout_route(cx: &mut TestAppContext) {
     cx.update(|cx| {
       crate::init(cx);
-      use_navigate(cx).push("/settings/profile");
     });
 
     let (_, visual) = cx.add_window_view(|_, _| LayoutRelativeLinkView);
+    // The window's state only exists once its tree has rendered, so draw
+    // before navigating from an event handler.
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+      use_navigate(window, cx).push("/settings/profile");
+    });
     visual.update(|window, cx| {
       let _ = window.draw(cx);
     });
@@ -491,10 +513,13 @@ pub mod tests {
   async fn test_layout_relative_link_after_the_outlet_resolves_against_the_layout_route(cx: &mut TestAppContext) {
     cx.update(|cx| {
       crate::init(cx);
-      use_navigate(cx).push("/settings/profile");
     });
 
     let (_, visual) = cx.add_window_view(|_, _| LayoutRelativeLinkView);
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+      use_navigate(window, cx).push("/settings/profile");
+    });
     visual.update(|window, cx| {
       let _ = window.draw(cx);
     });
@@ -542,10 +567,13 @@ pub mod tests {
   async fn test_layout_relative_redirect_resolves_against_the_layout_route(cx: &mut TestAppContext) {
     cx.update(|cx| {
       crate::init(cx);
-      use_navigate(cx).push("/settings/profile");
     });
 
     let (_, visual) = cx.add_window_view(|_, _| LayoutRelativeRedirectView);
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+      use_navigate(window, cx).push("/settings/profile");
+    });
     visual.update(|window, cx| {
       let _ = window.draw(cx);
     });
@@ -584,10 +612,13 @@ pub mod tests {
   async fn test_relative_redirect_at_its_target_does_not_navigate_again(cx: &mut TestAppContext) {
     cx.update(|cx| {
       crate::init(cx);
-      use_navigate(cx).push("/settings");
     });
 
     let (_, visual) = cx.add_window_view(|_, _| RelativeRedirectGuardView);
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+      use_navigate(window, cx).push("/settings");
+    });
     visual.update(|window, cx| {
       let _ = window.draw(cx);
     });
@@ -671,10 +702,13 @@ pub mod tests {
   async fn test_link_replace_reuses_the_current_history_entry(cx: &mut TestAppContext) {
     cx.update(|cx| {
       crate::init(cx);
-      use_navigate(cx).push("/home");
     });
 
     let (_, visual) = cx.add_window_view(|_, _| ReplaceLinkView);
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+      use_navigate(window, cx).push("/home");
+    });
     click_element(visual, "replace-link");
 
     let (pathname, history) = visual.update(|_, cx| {
@@ -689,10 +723,13 @@ pub mod tests {
   async fn test_link_push_adds_a_history_entry(cx: &mut TestAppContext) {
     cx.update(|cx| {
       crate::init(cx);
-      use_navigate(cx).push("/home");
     });
 
     let (_, visual) = cx.add_window_view(|_, _| ReplaceLinkView);
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+      use_navigate(window, cx).push("/home");
+    });
     click_element(visual, "push-link");
 
     let (pathname, history) = visual.update(|_, cx| {
@@ -701,5 +738,128 @@ pub mod tests {
     });
     assert_eq!(pathname.as_ref(), "/settings");
     assert_eq!(history, 3, "push adds an entry next to `/home`");
+  }
+
+  #[gpui::test]
+  async fn test_navigation_updates_the_location_immediately(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+    });
+
+    let (_, visual) = cx.add_window_view(|_, _| Basic {});
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+      use_navigate(window, cx).push("/about");
+      // The navigator changed the location before it returned, so the routed UI
+      // is already at the new route without the caller scheduling a frame.
+      assert_eq!(RouterState::global(cx).location.pathname, "/about");
+    });
+  }
+
+  #[gpui::test]
+  async fn test_two_windows_route_independently(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+    });
+
+    let window_a = cx.add_window(|_, _cx| Basic {});
+    let window_b = cx.add_window(|_, _cx| Basic {});
+
+    let window_a_id = {
+      let mut visual_a = VisualTestContext::from_window(window_a.into(), cx);
+      visual_a.update(|window, cx| {
+        let _ = window.draw(cx);
+        use_navigate(window, cx).push("/about");
+        window.window_handle().window_id()
+      })
+    };
+    let window_b_id = {
+      let mut visual_b = VisualTestContext::from_window(window_b.into(), cx);
+      visual_b.update(|window, cx| {
+        let _ = window.draw(cx);
+        use_navigate(window, cx).push("/dashboard");
+        window.window_handle().window_id()
+      })
+    };
+
+    // The state is per window, so reading it by window id is independent of
+    // whichever window rendered last and bound the current window.
+    let (a, b) = cx.update(|cx| {
+      let registry = cx.global::<RouterRegistry>();
+      let state_a = registry.windows.get(&window_a_id).unwrap();
+      let state_b = registry.windows.get(&window_b_id).unwrap();
+      (state_a.location.pathname.clone(), state_b.location.pathname.clone())
+    });
+    assert_eq!(a.as_ref(), "/about");
+    assert_eq!(b.as_ref(), "/dashboard");
+  }
+
+  /// A `Routes` tree nested inside the element of another `Routes` tree.
+  struct NestedRoutesView {
+    inner_len: std::sync::Arc<std::sync::atomic::AtomicU32>,
+  }
+
+  impl Render for NestedRoutesView {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+      let inner_len = self.inner_len.clone();
+      Routes::new().basename("/").child(
+        Route::new()
+          .path("settings")
+          .element(move |_, cx| {
+            // Built while the outer tree lays out: the outer chain holds the
+            // `settings` route and its matched `security` child by now.
+            let security_len = inner_len.clone();
+            div()
+              .child(format!("outer={}", use_matches(cx).len()))
+              .child(Outlet::new())
+              .child(
+                Routes::new()
+                  .basename("/settings")
+                  .child(Route::new().index().element(|_, _| "settings-index"))
+                  .child(Route::new().path("security").element(move |_, cx| {
+                    security_len.store(use_matches(cx).len() as u32, std::sync::atomic::Ordering::SeqCst);
+                    div().debug_selector(|| "security".to_string()).child("security")
+                  })),
+              )
+          })
+          .children(vec![
+            Route::new().index().element(|_, _| "settings-home"),
+            Route::new().path("security").element(|_, _| "security"),
+          ]),
+      )
+    }
+  }
+
+  #[gpui::test]
+  async fn test_nested_routes_tree_isolates_its_match_chain(cx: &mut TestAppContext) {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    cx.update(|cx| {
+      crate::init(cx);
+    });
+
+    let inner_len = Arc::new(AtomicU32::new(0));
+    let (_, visual) = cx.add_window_view(|_, _| NestedRoutesView {
+      inner_len: inner_len.clone(),
+    });
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+      use_navigate(window, cx).push("/settings/security");
+    });
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+    });
+
+    let outer_after = visual.update(|_, cx| RouterState::global(cx).matches.len());
+    assert_eq!(
+      inner_len.load(Ordering::SeqCst),
+      1,
+      "the inner tree sees only its own match"
+    );
+    assert_eq!(
+      outer_after, 2,
+      "the inner tree restored the outer match chain after it rendered"
+    );
   }
 }

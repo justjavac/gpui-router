@@ -41,7 +41,7 @@ fn unknown_paths_fall_back_to_the_wildcard_route(cx: &mut TestAppContext) {
   cx.update_window(handle.into(), |_, window, cx| {
     window.render_frame(cx);
     {
-      let mut navigate = gpui_router::use_navigate(cx);
+      let mut navigate = gpui_router::use_navigate(window, cx);
       navigate.push("/nothing-here");
     }
     window.render_frame(cx);
@@ -95,7 +95,7 @@ fn element_routes_render_their_children_through_the_outlet(cx: &mut TestAppConte
 
     // History: going back returns to the location before the link.
     {
-      let mut navigate = gpui_router::use_navigate(cx);
+      let mut navigate = gpui_router::use_navigate(window, cx);
       navigate.back();
     }
     window.render_frame(cx);
@@ -145,7 +145,7 @@ fn pathless_groups_render_the_matched_child(cx: &mut TestAppContext) {
       ("/settings/account/security", "account-security"),
     ] {
       {
-        let mut navigate = gpui_router::use_navigate(cx);
+        let mut navigate = gpui_router::use_navigate(window, cx);
         navigate.push(path);
       }
       window.render_frame(cx);

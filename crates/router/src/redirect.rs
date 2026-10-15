@@ -72,7 +72,7 @@ impl RenderOnce for Redirect {
     };
 
     if !already_there {
-      let mut navigate = use_navigate(cx);
+      let mut navigate = use_navigate(window, cx);
       if let Some(state) = self.state {
         navigate.state(state);
       }
@@ -81,8 +81,6 @@ impl RenderOnce for Redirect {
       } else {
         navigate.push(self.to);
       }
-      // The location changed while this frame renders, so ask for another one.
-      window.refresh();
     }
 
     Empty {}.into_any_element()

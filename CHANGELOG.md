@@ -6,6 +6,34 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-10
+
+### Breaking
+
+- `use_navigate(window, cx)` and `use_set_search_params(window, cx)` take the
+  window they navigate in, so they can refresh it after changing the location
+  ([#41]). Event handlers no longer call `window.refresh()` by hand; async
+  tasks update the window first (see the "Async navigation" section in the
+  README).
+- `RouterState` is no longer an application-wide singleton. The router now keeps
+  one state per window, created lazily the first time a `Routes` tree renders in
+  that window, so two windows can show different routes ([#40]). The read hooks
+  keep their signatures: they resolve against the window that is rendering,
+  which `Routes` binds while it lays out.
+
+### Fixed
+
+- Two windows shared one `location`, `history` and match chain, so navigating in
+  one window moved the other. State is now per window ([#40]).
+- A `Routes` tree nested inside another tree's element (e.g. the settings
+  router in `sub_router.rs`) overwrote the outer tree's `matches`, `params` and
+  `matched_pattern`, so the outer tree's breadcrumbs read the inner tree's
+  chain. Each tree now renders in its own frame, which is saved when the tree
+  enters and restored when it leaves ([#40]).
+- Navigation changed the location without scheduling a repaint, so a click
+  handler had to remember `window.refresh()` to see the new route. The navigator
+  now refreshes the window it was created from ([#41]).
+
 ## [0.6.0] - 2026-10-07
 
 ### Fixed
@@ -96,7 +124,8 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 [#47]: https://github.com/justjavac/gpui-router/pull/47
 [#48]: https://github.com/justjavac/gpui-router/pull/48
 
-[Unreleased]: https://github.com/justjavac/gpui-router/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/justjavac/gpui-router/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/justjavac/gpui-router/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/justjavac/gpui-router/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/justjavac/gpui-router/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/justjavac/gpui-router/compare/v0.4.0...v0.4.1

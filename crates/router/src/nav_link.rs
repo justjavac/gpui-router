@@ -130,7 +130,7 @@ impl Link {
       .base
       .id(element_id)
       .on_click(move |_, window, cx| {
-        let mut navigate = use_navigate(cx);
+        let mut navigate = use_navigate(window, cx);
         if let Some(state) = location_state.clone() {
           navigate.state(state);
         }
@@ -139,7 +139,6 @@ impl Link {
         } else {
           navigate.push(to.clone());
         }
-        window.refresh();
       })
       .children(self.children)
   }
@@ -319,8 +318,18 @@ fn is_child_path(pathname: &str, to: &str, case_sensitive: bool) -> bool {
 #[cfg(test)]
 mod tests {
   use super::{Link, NavLink, is_active_path};
-  use crate::RouterState;
-  use gpui::{Element, ElementId};
+  use crate::{CurrentWindowId, RouterRegistry, RouterState};
+  use gpui::{Element, ElementId, SharedString, WindowId};
+
+  /// Binds a fake rendering window and creates its router state, so the
+  /// `link_element` helpers can resolve targets and read the location.
+  fn init_rendering_window(cx: &mut gpui::App) {
+    crate::init(cx);
+    let window_id = WindowId::from(1);
+    cx.set_global(CurrentWindowId(window_id));
+    let registry = cx.global_mut::<RouterRegistry>();
+    registry.ensure_window(window_id, &SharedString::from("/"));
+  }
 
   #[test]
   fn test_root_nav_link_is_only_active_on_exact_root() {
@@ -363,7 +372,7 @@ mod tests {
 
   #[gpui::test]
   async fn test_link_element_id(cx: &mut gpui::TestAppContext) {
-    cx.update(crate::init);
+    cx.update(init_rendering_window);
 
     cx.update(|cx| {
       let default_id = Link::new().to("/about").link_element(cx);
@@ -379,13 +388,13 @@ mod tests {
 
   #[gpui::test]
   async fn test_link_resolves_relative_targets(cx: &mut gpui::TestAppContext) {
-    cx.update(crate::init);
+    cx.update(init_rendering_window);
 
     cx.update(|cx| {
       {
         let state = RouterState::require_mut(cx);
-        state.record_match(&gpui::SharedString::from("/"));
-        state.record_match(&gpui::SharedString::from("/settings"));
+        state.record_match(&SharedString::from("/"));
+        state.record_match(&SharedString::from("/settings"));
       }
 
       // Nothing is rendering, so the deepest match is the base.
@@ -395,7 +404,7 @@ mod tests {
       // Path-relative resolves against the current pathname.
       {
         let state = RouterState::require_mut(cx);
-        state.location.pathname = gpui::SharedString::from("/settings");
+        state.location.pathname = SharedString::from("/settings");
       }
       let path_relative = Link::new()
         .to("profile")
