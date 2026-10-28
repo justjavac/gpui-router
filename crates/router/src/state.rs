@@ -77,9 +77,14 @@ pub(crate) fn with_render_route<R>(route: usize, build: impl FnOnce() -> R) -> R
   build()
 }
 
-/// The window whose tree is currently being rendered. `Routes` sets this
-/// before it lays out its subtree, so the read hooks can resolve against the
-/// state of the window they belong to without taking a `Window` parameter.
+/// The window whose `Routes` tree was most recently bound while rendering.
+/// `Routes` sets this before it lays out its subtree, so read hooks inside that
+/// subtree resolve against the right window without taking a `Window`
+/// parameter.
+///
+/// Reads outside a routed subtree (a root view before its `Routes` renders, or
+/// an event handler in a multi-window app) see whichever window rendered a
+/// tree last.
 pub struct CurrentWindowId(pub WindowId);
 
 impl Global for CurrentWindowId {}
