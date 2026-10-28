@@ -239,7 +239,7 @@ pub mod tests {
   /// Opens a routed window and draws it once, so its router state exists and
   /// the rendering window is bound for the test body's hooks.
   fn open_window(cx: &mut TestAppContext) -> &mut VisualTestContext {
-    cx.update(|cx| crate::init(cx));
+    cx.update(crate::init);
     let (_, visual) = cx.add_window_view(|_, _| TestRoutes);
     visual.update(|window, cx| {
       let _ = window.draw(cx);

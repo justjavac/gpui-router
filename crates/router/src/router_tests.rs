@@ -654,6 +654,55 @@ pub mod tests {
     assert_eq!(after, before, "a redirect at its target does not navigate again");
   }
 
+  /// A route that redirects on its first render; the target has a debug
+  /// selector so a test can see which route the window actually painted.
+  struct RedirectNextFrameView;
+
+  impl Render for RedirectNextFrameView {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+      Routes::new().basename("/").child(
+        Route::new()
+          .path("settings")
+          .element(|_, cx| {
+            if use_location(cx).pathname.as_ref() == "/settings" {
+              Redirect::to("profile").replace(true).into_any_element()
+            } else {
+              div().child(Outlet::new()).into_any_element()
+            }
+          })
+          .children(vec![Route::new().path("profile").element(|_, _| {
+            div().debug_selector(|| "redirect-target".to_string()).child("profile")
+          })]),
+      )
+    }
+  }
+
+  #[gpui::test]
+  async fn test_redirect_schedules_the_next_frame(cx: &mut TestAppContext) {
+    cx.update(|cx| {
+      crate::init(cx);
+    });
+
+    let (_, visual) = cx.add_window_view(|_, _| RedirectNextFrameView);
+    visual.update(|window, cx| {
+      let _ = window.draw(cx);
+      use_navigate(window, cx).push("/settings");
+
+      // This draw renders the redirect, which navigates during layout. Its
+      // refresh is deferred to the end of the update, where the test app draws
+      // dirty windows, so the redirected route is painted before `update`
+      // returns.
+      let _ = window.draw(cx);
+    });
+
+    let pathname = visual.update(|_, cx| RouterState::global(cx).location.pathname.clone());
+    assert_eq!(pathname.as_ref(), "/settings/profile");
+    assert!(
+      visual.debug_bounds("redirect-target").is_some(),
+      "the redirect should schedule a frame for its target instead of waiting for an unrelated event"
+    );
+  }
+
   /// A page with one pushing and one replacing link to the same target.
   struct ReplaceLinkView;
 

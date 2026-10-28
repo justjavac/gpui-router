@@ -72,15 +72,26 @@ impl RenderOnce for Redirect {
     };
 
     if !already_there {
-      let mut navigate = use_navigate(window, cx);
-      if let Some(state) = self.state {
-        navigate.state(state);
+      {
+        let mut navigate = use_navigate(window, cx);
+        if let Some(state) = self.state {
+          navigate.state(state);
+        }
+        if self.replace {
+          navigate.replace(self.to);
+        } else {
+          navigate.push(self.to);
+        }
       }
-      if self.replace {
-        navigate.replace(self.to);
-      } else {
-        navigate.push(self.to);
-      }
+
+      // A redirect navigates while the tree is being laid out, when
+      // `Window::refresh` cannot schedule anything. Defer the refresh until the
+      // update finishes, so the redirected route is painted on the next frame
+      // instead of waiting for an unrelated event.
+      let window_handle = window.window_handle();
+      cx.defer(move |cx| {
+        let _ = window_handle.update(cx, |_, window, _| window.refresh());
+      });
     }
 
     Empty {}.into_any_element()
