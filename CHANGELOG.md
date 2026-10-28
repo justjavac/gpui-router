@@ -6,6 +6,13 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- A `Redirect` navigated while its window was being laid out, where
+  `Window::refresh` cannot schedule a frame. The redirected route only appeared
+  on the next unrelated repaint; redirects now defer the refresh until the
+  update finishes ([#41]).
+
 ## [0.7.0] - 2026-10-19
 
 ### Breaking
