@@ -168,13 +168,17 @@ fn main() {
 **Note:** Router state is per window. Each window that renders a `Routes` tree
 gets its own state, created lazily the first time the tree renders, so two
 windows can show different routes without fighting over a single application-wide
-state. Call `gpui_router::init` once during startup to register the state map;
-rendering without that call panics with the line to add, instead of silently
-rendering the wrong thing.
+state. A window should render one top-level `Routes` tree: nested trees (an
+`Outlet` that renders another `Routes`) are isolated by their own render frame,
+but two sibling trees in the same window share that window's `location`, and the
+last tree to render wins the match chain. Call `gpui_router::init` once during
+startup to register the state map; rendering without that call panics with the
+line to add, instead of silently rendering the wrong thing.
 
 ### Reading the location
 
-Hooks read the router state from any `Render` implementation or event handler:
+Hooks read the router state of the window whose `Routes` tree is currently being
+laid out:
 
 | Hook | Returns |
 | --- | --- |
@@ -205,6 +209,12 @@ from the previous frame until the next one renders. `use_navigate` and
 `use_set_search_params` take the `window` they navigate in so they can refresh
 it themselves, which is why a click handler no longer needs to call
 `window.refresh()` by hand.
+
+The read hooks do not take a `Window`. In a single-window app they also work from
+event handlers, where they see the last rendered frame. In a multi-window app,
+call them inside the routed subtree: an event handler in one window can read the
+state of whichever window rendered a `Routes` tree last. Window-aware read hooks
+are planned for 0.8.
 
 ### Async navigation
 

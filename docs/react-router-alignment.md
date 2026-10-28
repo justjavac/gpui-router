@@ -169,14 +169,16 @@ complete either way.
 Ordered by how much each item changes what an application has to know, not by
 effort. Nothing here is committed to a release yet.
 
-1. ⬜ Make navigation schedule a frame ([#41]): navigation that does not
-   repaint is a sharp edge a React Router user hits on the first day. ✅
+1. ✅ Make navigation schedule a frame ([#41]): navigation that does not
+   repaint is a sharp edge a React Router user hits on the first day.
    `Link`/`NavLink` gained `replace(true)` ([#39], [#43]); `use_navigate` and
    `use_set_search_params` take the `window` they navigate in and refresh it
    themselves, so a click handler no longer calls `window.refresh()` by hand.
-2. ⬜ Settle the state model: per-window state, plus a snapshot of
+   `Redirect` navigates while the tree is being laid out, where `refresh` cannot
+   schedule anything, so it defers the refresh until the update ends.
+2. ✅ Settle the state model: per-window state, plus a snapshot of
    `matches`/`params` per `Routes` tree so a nested tree cannot rewrite what an
-   outer tree recorded ([#40]). ✅ 0.7.0 keeps one state per window, created
+   outer tree recorded ([#40]). 0.7.0 keeps one state per window, created
    lazily when its first `Routes` tree renders, and brackets each tree's render
    with a frame that a nested tree saves and restores. Do this before the data
    APIs, which would store loader data in the same state.
@@ -191,6 +193,9 @@ effort. Nothing here is committed to a release yet.
    not force applications to serialize values into strings.
 8. ⬜ Let an `Outlet` that is built inside a child component's `render` (rather
    than inside the route's element closure) receive the matched child.
+9. ⬜ Give the read hooks the `Window` they read from. They currently resolve
+   through `CurrentWindowId`, which `Routes` binds while it lays out, so an
+   event handler in a multi-window app can read another window's route.
 
 ## Divergence register
 
@@ -203,7 +208,7 @@ are the work in [phase 4](#phase-4--remaining-alignment-open).
 | `<Link replace>` | `Link::new().replace(true)`, `NavLink::replace(true)` | aligned ([#43]) |
 | `useNavigationType` | `use_navigation_type(cx)`, a `NavigationType` | aligned ([#45]) |
 | `useBlocker`, `useBeforeUnload` | missing | open (phase 4) |
-| `navigate()` repaints the screen | `Navigator` refreshes the `window` it was created from | aligned ([#41]) |
+| `navigate()` repaints the screen | `Navigator` and `Redirect` refresh the window they render in | aligned ([#41]) |
 | `useOutletContext`, `lazy`, `<ScrollRestoration>` | missing | deliberate: GPUI has no context lookup, and the other two are web-only |
 | `<Navigate>` | `Redirect` | deliberate for now: a v5 name; `Navigate` is open work |
 | `navigate(to, { relative, state, replace })`, `navigate(-1)` | `Navigator` with `relative`, `state`, `push`, `replace`, `back`, `forward` | adapted: no options object in Rust |
@@ -245,6 +250,7 @@ Rules for behaviour that only exists inside a frame:
 | `navigate(to, { replace })`, `navigate(-1)`, forward entries | `test_navigator_history` |
 | `location.search`, `hash` and `state` | `test_use_search_params`, `test_navigator_location_state` |
 | `<Navigate replace>` does not navigate twice | `test_layout_relative_redirect_resolves_against_the_layout_route` (draws the target twice) |
+| a redirect paints its target without waiting for an unrelated event | `test_redirect_schedules_the_next_frame` |
 | `<Link replace>` reuses the history entry while a plain link adds one | `test_link_replace_reuses_the_current_history_entry`, `test_link_push_adds_a_history_entry` |
 | `useNavigationType` reports how the entry was reached | `test_use_navigation_type` |
 | optional segments are not silently mis-parsed | `test_react_router_optional_segments_are_rejected`, `test_matcher_optional_segments_are_rejected` |
@@ -253,8 +259,8 @@ Rules for behaviour that only exists inside a frame:
 
 | Risk | What it costs | Where |
 | --- | --- | --- |
-| One `RouterState` per application | Windows cannot route independently, and a second `Routes` tree clears the first tree's `matches`/`params`, so outer chrome can read the wrong route | [#40], `crates/router/src/state.rs` |
-| Navigation mutates state without a frame | `nav.push` in an event handler or task leaves the UI stale until something else repaints | [#41], `crates/router/src/hooks.rs` |
+| Read hooks resolve against the last window that rendered a `Routes` tree | An event handler in one window can read another window's `location`/`params`; keep multi-window reads inside the routed subtree until window-aware hooks land | Phase 4 item 9, `crates/router/src/state.rs` |
+| Navigation from an async task has no window | The task must update the window first; without it the UI stays stale | `crates/router/src/hooks.rs`, README |
 | Resolution happens while GPUI lays a tree out | A new element that resolves a target or reads the route chain must be wrapped in `RouteScope`, or it silently falls back to the deepest match | [#35], [#36], `crates/router/src/route.rs` |
 | `Location::state` is a string map | React Router allows any value; the map exists to keep `Ord`/`PartialOrd` on `Location`, which nothing in the crate uses | Decisions table |
 | Route matching is case-sensitive, `NavLink` is not | `/About` highlights the `/about` link but renders nothing | Divergence register |
